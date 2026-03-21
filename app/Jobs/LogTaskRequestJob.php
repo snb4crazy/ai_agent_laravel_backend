@@ -14,12 +14,10 @@ class LogTaskRequestJob implements ShouldQueue
 
     /**
      * Create a new job instance.
-     *
      */
     public function __construct(
         public int $taskId
-    ) {
-    }
+    ) {}
 
     /**
      * Execute the job.
@@ -56,4 +54,3 @@ class LogTaskRequestJob implements ShouldQueue
         ]);
     }
 }
-
