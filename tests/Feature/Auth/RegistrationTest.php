@@ -31,7 +31,7 @@ class RegistrationTest extends TestCase
             ->expectsQuestion('Email', 'CLI@Example.com')
             ->expectsQuestion('Password', 'password')
             ->expectsQuestion('Confirm password', 'password')
-            ->expectsOutput('User cli@example.com created successfully.')
+            ->expectsOutput('User cli@example.com created successfully (email verified).')
             ->assertExitCode(0);
 
         $user = User::query()->where('email', 'cli@example.com')->first();
@@ -39,6 +39,7 @@ class RegistrationTest extends TestCase
         $this->assertNotNull($user);
         $this->assertSame('CLI User', $user->name);
         $this->assertTrue(Hash::check('password', $user->password));
+        $this->assertNotNull($user->email_verified_at);
     }
 
     public function test_cli_command_rejects_invalid_user_input(): void
