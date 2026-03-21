@@ -65,4 +65,3 @@ class CreateUserCommand extends Command
         return SymfonyCommand::SUCCESS;
     }
 }
-

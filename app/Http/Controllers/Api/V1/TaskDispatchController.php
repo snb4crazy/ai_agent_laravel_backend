@@ -6,4 +6,3 @@ class TaskDispatchController extends TaskController
 {
     // Backward-compatible wrapper for the consolidated TaskController.
 }
-

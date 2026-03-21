@@ -29,4 +29,3 @@ class IssueApiTokenRequest extends FormRequest
         ];
     }
 }
-

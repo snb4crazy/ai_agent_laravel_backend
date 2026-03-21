@@ -144,4 +144,3 @@ class AiControlPlaneModelsTest extends TestCase
         $this->assertInstanceOf(Carbon::class, $event->available_at);
     }
 }
-

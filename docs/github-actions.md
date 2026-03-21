@@ -28,7 +28,7 @@ File: `.github/workflows/ci.yml`
 
 ### What it does
 
-For each configured PHP version (`8.3`, `8.4`), the workflow:
+The workflow uses PHP `8.4` (matches current `composer.lock` platform requirements) and:
 
 1. checks out the repository,
 2. installs PHP and Composer,
@@ -50,12 +50,19 @@ File: `.github/workflows/release.yml`
 
 ### Triggers
 
+- `push` to `master`
+- `pull_request` targeting `master`
 - `push` on version tags matching `v*`
 - manual run via `workflow_dispatch`
 
 ### What it does
 
-The workflow:
+The release pipeline has two jobs:
+
+1. `verify-release` (runs on `master`, PRs, tags, and manual trigger)
+2. `publish-release` (runs only for tag refs like `refs/tags/v*`)
+
+`verify-release`:
 
 1. checks out the repository,
 2. installs PHP 8.3 and Composer,
@@ -64,7 +71,7 @@ The workflow:
 5. prepares `.env` and generates an app key,
 6. runs Pint style checks,
 7. runs the Laravel test suite,
-8. publishes a GitHub Release with generated release notes.
+8. if triggered by a `v*` tag, `publish-release` creates a GitHub Release with generated release notes.
 
 ### Why this is "CD" for now
 

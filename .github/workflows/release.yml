@@ -2,16 +2,21 @@ name: Release
 
 on:
   push:
+    branches:
+      - master
     tags:
       - 'v*'
+  pull_request:
+    branches:
+      - master
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  verify-and-release:
-    name: Verify release and publish GitHub Release
+  verify-release:
+    name: Verify release pipeline
     runs-on: ubuntu-latest
 
     steps:
@@ -21,7 +26,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.4'
           coverage: none
           extensions: mbstring, sqlite, pdo_sqlite, dom, curl
           tools: composer:v2
@@ -50,6 +55,13 @@ jobs:
       - name: Run test suite
         run: composer test
 
+  publish-release:
+    name: Publish GitHub release
+    needs: verify-release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+
+    steps:
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:

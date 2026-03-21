@@ -112,4 +112,3 @@ class AiControlPlaneSchemaTest extends TestCase
         ]);
     }
 }
-

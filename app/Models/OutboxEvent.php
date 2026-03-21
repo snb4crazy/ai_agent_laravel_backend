@@ -34,4 +34,3 @@ class OutboxEvent extends Model
         ];
     }
 }
-
