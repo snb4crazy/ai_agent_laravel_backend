@@ -37,4 +37,3 @@ class PromptTemplate extends Model
         return $this->hasMany(PromptVersion::class);
     }
 }
-

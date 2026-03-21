@@ -52,4 +52,3 @@ class Task extends Model
         return $this->hasMany(RunLog::class);
     }
 }
-

@@ -43,4 +43,3 @@ class PromptVersion extends Model
         return $this->hasMany(AgentRun::class);
     }
 }
-

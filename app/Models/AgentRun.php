@@ -78,4 +78,3 @@ class AgentRun extends Model
         return $this->hasMany(RunArtifact::class);
     }
 }
-

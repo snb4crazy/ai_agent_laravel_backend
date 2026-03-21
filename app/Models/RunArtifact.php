@@ -34,4 +34,3 @@ class RunArtifact extends Model
         return $this->belongsTo(AgentRun::class, 'agent_run_id');
     }
 }
-

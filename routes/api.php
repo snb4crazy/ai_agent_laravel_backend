@@ -18,4 +18,3 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/tasks/{taskPublicId}/logs', [TaskController::class, 'logs']);
     });
 });
-
