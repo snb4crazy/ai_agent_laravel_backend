@@ -25,6 +25,11 @@ Date: 2026-03-20
 5. Added automated tests for schema integrity and model behavior:
    - `tests/Feature/Database/AiControlPlaneSchemaTest.php`
    - `tests/Feature/Models/AiControlPlaneModelsTest.php`
+6. Added interactive CLI user provisioning:
+   - `php artisan user:create`
+   - moved command logic to `app/Console/Commands/CreateUserCommand.php`
+7. Disabled public registration route for now:
+   - removed `POST /register` from `routes/auth.php`
 
 ## Verification actions run
 

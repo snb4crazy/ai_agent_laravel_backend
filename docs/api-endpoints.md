@@ -4,10 +4,11 @@ Date: 2026-03-20
 
 This document describes the current test API flow:
 
-1. Authenticate and receive a Sanctum bearer token.
-2. Call the protected task dispatch endpoint with that token.
-3. Poll the task status endpoint with the returned `task_public_id`.
-4. Optionally fetch task logs.
+1. Create a user from CLI (registration route is disabled).
+2. Authenticate and receive a Sanctum bearer token.
+3. Call the protected task dispatch endpoint with that token.
+4. Poll the task status endpoint with the returned `task_public_id`.
+5. Optionally fetch task logs.
 
 For now:
 
@@ -20,6 +21,22 @@ For now:
 
 - Local: `http://localhost:8000`
 - API prefix: `/api/v1`
+
+## User Provisioning (CLI)
+
+Public registration is disabled (`POST /register` is not available).
+Create users from terminal with:
+
+```bash
+php artisan user:create
+```
+
+The command asks for all mandatory fields:
+
+- `Name`
+- `Email`
+- `Password`
+- `Confirm password`
 
 ## Endpoint: Issue API Token
 
@@ -176,7 +193,13 @@ Returned when payload does not satisfy:
 
 ## cURL Examples
 
-### 1) Authenticate
+### 1) Create user from CLI
+
+```bash
+php artisan user:create
+```
+
+### 2) Authenticate
 
 ```bash
 curl -sS -X POST "http://localhost:8000/api/v1/auth/token" \
@@ -188,7 +211,7 @@ curl -sS -X POST "http://localhost:8000/api/v1/auth/token" \
   }'
 ```
 
-### 2) Dispatch a task
+### 3) Dispatch a task
 
 ```bash
 TOKEN="<PASTE_TOKEN_HERE>"
@@ -207,7 +230,7 @@ curl -sS -X POST "http://localhost:8000/api/v1/tasks" \
   }'
 ```
 
-### 3) Check task status
+### 4) Check task status
 
 ```bash
 TASK_ID="<PASTE_TASK_PUBLIC_ID_HERE>"
@@ -216,7 +239,7 @@ curl -sS "http://localhost:8000/api/v1/tasks/${TASK_ID}" \
   -H "Authorization: Bearer ${TOKEN}"
 ```
 
-### 4) Fetch task logs
+### 5) Fetch task logs
 
 ```bash
 curl -sS "http://localhost:8000/api/v1/tasks/${TASK_ID}/logs" \
