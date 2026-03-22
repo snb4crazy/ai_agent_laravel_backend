@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Exceptions\TaskException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreTaskDispatchRequest;
 use App\Jobs\LogTaskRequestJob;
@@ -10,7 +11,6 @@ use App\Models\Task;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class TaskController extends Controller
 {
@@ -20,34 +20,39 @@ class TaskController extends Controller
     public function store(StoreTaskDispatchRequest $request): JsonResponse
     {
         $validated = $request->validated();
-        $task = Task::query()->create([
-            'public_id' => (string) Str::uuid(),
-            'user_id' => $request->user()?->id,
-            'type' => $validated['type'],
-            'status' => 'queued',
-            'input_json' => $validated['input'],
-            'meta_json' => $validated['meta'] ?? null,
-        ]);
 
-        RunLog::query()->create([
-            'task_id' => $task->id,
-            'level' => 'info',
-            'event_type' => 'task.accepted',
-            'message' => 'Task request accepted and persisted',
-            'context_json' => [
+        try {
+            $task = Task::query()->create([
+                'public_id' => (string) \Illuminate\Support\Str::uuid(),
+                'user_id' => $request->user()?->id,
+                'type' => $validated['type'],
+                'status' => 'queued',
+                'input_json' => $validated['input'],
+                'meta_json' => $validated['meta'] ?? null,
+            ]);
+
+            RunLog::query()->create([
+                'task_id' => $task->id,
+                'level' => 'info',
+                'event_type' => 'task.accepted',
+                'message' => 'Task request accepted and persisted',
+                'context_json' => [
+                    'task_public_id' => $task->public_id,
+                    'user_id' => $request->user()?->id,
+                    'input' => $validated,
+                ],
+            ]);
+
+            Log::info('Task dispatch request accepted', [
                 'task_public_id' => $task->public_id,
                 'user_id' => $request->user()?->id,
                 'input' => $validated,
-            ],
-        ]);
+            ]);
 
-        Log::info('Task dispatch request accepted', [
-            'task_public_id' => $task->public_id,
-            'user_id' => $request->user()?->id,
-            'input' => $validated,
-        ]);
-
-        LogTaskRequestJob::dispatch($task->id)->onQueue('ai');
+            LogTaskRequestJob::dispatch($task->id)->onQueue('ai');
+        } catch (\Throwable $e) {
+            throw TaskException::dispatchFailed($e);
+        }
 
         return response()->json([
             'status' => $task->status,
@@ -102,9 +107,15 @@ class TaskController extends Controller
 
     protected function findUserTaskOrFail(Request $request, string $taskPublicId): Task
     {
-        return Task::query()
+        $task = Task::query()
             ->where('public_id', $taskPublicId)
             ->where('user_id', $request->user()?->id)
-            ->firstOrFail();
+            ->first();
+
+        if ($task === null) {
+            throw TaskException::notFound();
+        }
+
+        return $task;
     }
 }
