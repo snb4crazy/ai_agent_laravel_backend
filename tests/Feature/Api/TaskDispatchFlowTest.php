@@ -84,8 +84,9 @@ class TaskDispatchFlowTest extends TestCase
                 'input' => 'invalid',
             ]);
 
-        $response->assertUnprocessable();
-        $response->assertJsonValidationErrors(['type', 'input']);
+        $response->assertUnprocessable()
+            ->assertJsonPath('error.code', 'VALIDATION_ERROR')
+            ->assertJsonStructure(['error' => ['code', 'message', 'errors' => ['type', 'input']]]);
     }
 
     public function test_authenticated_dispatch_persists_task_and_log_in_database(): void
