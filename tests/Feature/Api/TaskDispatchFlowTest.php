@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Enums\QueueEnum;
 use App\Jobs\LogTaskRequestJob;
 use App\Models\Task;
 use App\Models\User;
@@ -64,7 +65,8 @@ class TaskDispatchFlowTest extends TestCase
         $this->assertSame($payload['type'], $task->type);
 
         Queue::assertPushed(LogTaskRequestJob::class, function (LogTaskRequestJob $job) use ($task): bool {
-            return $job->taskId === $task->id;
+            return $job->taskId === $task->id
+                && $job->queue === QueueEnum::TASK;
         });
     }
 
