@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\QueueEnum;
 use App\Exceptions\TaskException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreTaskDispatchRequest;
@@ -11,6 +12,7 @@ use App\Models\Task;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class TaskController extends Controller
 {
@@ -23,7 +25,7 @@ class TaskController extends Controller
 
         try {
             $task = Task::query()->create([
-                'public_id' => (string) \Illuminate\Support\Str::uuid(),
+                'public_id' => (string) Str::uuid(),
                 'user_id' => $request->user()?->id,
                 'type' => $validated['type'],
                 'status' => 'queued',
@@ -49,7 +51,7 @@ class TaskController extends Controller
                 'input' => $validated,
             ]);
 
-            LogTaskRequestJob::dispatch($task->id)->onQueue('ai');
+            LogTaskRequestJob::dispatch($task->id)->onQueue(QueueEnum::TASK);
         } catch (\Throwable $e) {
             throw TaskException::dispatchFailed($e);
         }
