@@ -1,17 +1,23 @@
 <?php
 
-use App\Http\Middleware\EnsureEmailIsVerified;
 use App\Exceptions\ApiException;
+use App\Exceptions\BaseAppException;
+use App\Exceptions\DomainAppException;
+use App\Exceptions\ExternalAppException;
+use App\Exceptions\InfrastructureAppException;
+use App\Http\Middleware\EnsureEmailIsVerified;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Laravel\Sanctum\PersonalAccessToken;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withCommands([
@@ -35,15 +41,67 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->render(function (\Throwable $e, Request $request) {
+        $buildExceptionContext = static function (?Request $request = null): array {
+            $request ??= request();
+
+            if (! $request instanceof Request) {
+                return [];
+            }
+
+            $route = $request->route();
+
+            return [
+                'request_id' => $request->header('X-Request-Id')
+                    ?? $request->header('request_id')
+                    ?? $request->attributes->get('request_id'),
+                'route' => $route?->getName(),
+                'path' => $request->path(),
+                'method' => $request->method(),
+                'user_id' => $request->user()?->id,
+                'task_public_id' => $request->header('X-Task-Public-Id')
+                    ?? $request->header('task_public_id')
+                    ?? $request->route('taskPublicId')
+                    ?? $request->route('task_public_id'),
+            ];
+        };
+
+        $exceptions->report(function (Throwable $e) use ($buildExceptionContext): void {
+            $family = match (true) {
+                $e instanceof DomainAppException => 'domain',
+                $e instanceof InfrastructureAppException => 'infrastructure',
+                $e instanceof ExternalAppException => 'external',
+                default => 'unmapped',
+            };
+
+            Log::error('Application exception captured', [
+                'family' => $family,
+                'type' => $e::class,
+                'message' => $e->getMessage(),
+                ...$buildExceptionContext(),
+                // TODO: include run_public_id once agent runs are fully wired into API routes/jobs.
+            ]);
+        });
+
+        $exceptions->render(function (Throwable $e, Request $request) {
             if (! $request->is('api/*')) {
                 return null;
             }
 
-            // Domain exception — already has code, status and message
-            if ($e instanceof ApiException) {
-                report($e);
+            /*
+             |------------------------------------------------------------------
+             | Exception Family Mapping (API)
+             |------------------------------------------------------------------
+             | Domain: App\Exceptions\DomainAppException (and ApiException)
+             | Infrastructure: App\Exceptions\InfrastructureAppException
+             | External: App\Exceptions\ExternalAppException
+             |
+             | TODO: expand mapping with provider-specific external errors
+             | (Azure/OpenAI throttling, auth, malformed responses) and add
+             | retry hints for frontend/worker handling.
+             */
 
+            // Domain exception — already has code, status and message
+            if ($e instanceof ApiException || $e instanceof BaseAppException) {
                 return $e->render();
             }
 
@@ -73,14 +131,14 @@ return Application::configure(basePath: dirname(__DIR__))
                 $bearerToken = $request->bearerToken();
 
                 if ($bearerToken) {
-                    $tokenRecord = \Laravel\Sanctum\PersonalAccessToken::findToken($bearerToken);
+                    $tokenRecord = PersonalAccessToken::findToken($bearerToken);
 
                     if ($tokenRecord && $tokenRecord->expires_at?->isPast()) {
                         return response()->json([
                             'error' => [
-                                'code'    => 'TOKEN_EXPIRED',
+                                'code' => 'TOKEN_EXPIRED',
                                 'message' => 'Your session has expired. Please log in again.',
-                                'action'  => 'relogin',
+                                'action' => 'relogin',
                             ],
                         ], 401);
                     }
@@ -88,7 +146,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
                 return response()->json([
                     'error' => [
-                        'code'    => 'UNAUTHENTICATED',
+                        'code' => 'UNAUTHENTICATED',
                         'message' => 'Unauthenticated.',
                     ],
                 ], 401);
@@ -105,7 +163,6 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             // Unexpected errors — log and return a safe message
-            report($e);
 
             return response()->json([
                 'error' => [
