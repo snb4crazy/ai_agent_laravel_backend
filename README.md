@@ -33,7 +33,7 @@ It currently logs and persists task payloads; AI execution logic can be expanded
 
 - Frontend calls API endpoints on this backend
 - Backend validates input and persists task immediately
-- Backend dispatches queue job (`ai` queue)
+- Backend dispatches queue job (`ai-agent:task` by default)
 - Queue worker appends processing logs
 - Frontend polls task status and logs by `task_public_id`
 
@@ -100,8 +100,21 @@ Users created by this command are marked email-verified.
 
 ```bash
 php artisan serve
-php artisan queue:work --queue=ai
+php artisan queue:work redis --queue=task,service
 ```
+
+For dedicated worker pools, run separate processes:
+
+```bash
+php artisan queue:work redis --queue=task
+php artisan queue:work redis --queue=service
+```
+
+Queue names are code-defined in `app/Enums/QueueEnum.php` (example: `QueueEnum::TASK`).
+Extend that class when you add new worker groups.
+`REDIS_PREFIX` in `.env` namespaces all Redis keys globally — queue names themselves stay short (`task`, `service`, etc.).
+Queue names are code-defined in `app/Enums/QueueEnum.php` (example: `QueueEnum::TASK`).
+Extend that class when you add new worker groups.
 
 ## Core API flow
 
@@ -136,6 +149,7 @@ Key tables include:
 
 - API docs: [`docs/api-endpoints.md`](docs/api-endpoints.md)
 - CI/CD docs: [`docs/github-actions.md`](docs/github-actions.md)
+- Supervisor setup: [`docs/supervisor-setup.md`](docs/supervisor-setup.md)
 - Implementation log: [`docs/actions-log.md`](docs/actions-log.md)
 - Roadmap: [`docs/roadmap.md`](docs/roadmap.md)
 
