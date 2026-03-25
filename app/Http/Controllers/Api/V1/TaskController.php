@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\QueueEnum;
+use App\Enums\TaskStatus;
 use App\Exceptions\TaskException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreTaskDispatchRequest;
@@ -28,7 +29,7 @@ class TaskController extends Controller
                 'public_id' => (string) Str::uuid(),
                 'user_id' => $request->user()?->id,
                 'type' => $validated['type'],
-                'status' => 'queued',
+                'status' => TaskStatus::QUEUED,
                 'input_json' => $validated['input'],
                 'meta_json' => $validated['meta'] ?? null,
             ]);

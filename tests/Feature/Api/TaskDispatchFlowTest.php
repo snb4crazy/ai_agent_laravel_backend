@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Enums\QueueEnum;
+use App\Enums\TaskStatus;
 use App\Jobs\LogTaskRequestJob;
 use App\Models\Task;
 use App\Models\User;
@@ -118,7 +119,7 @@ class TaskDispatchFlowTest extends TestCase
             'public_id' => $taskPublicId,
             'user_id' => $user->id,
             'type' => 'chat.completion',
-            'status' => 'queued',
+            'status' => TaskStatus::COMPLETED,
         ]);
 
         $taskId = (int) $this->app['db']
