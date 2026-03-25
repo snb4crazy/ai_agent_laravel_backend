@@ -25,15 +25,17 @@ class LogTaskRequestJob implements ShouldQueue
      */
     public function handle(): void
     {
-        $task = Task::query()->findOrFail($this->taskId);
-
-        $task->forceFill([
-            'status' => TaskStatus::PROCESSING,
-            'started_at' => $task->started_at ?? now(),
-            'error_message' => null,
-        ])->save();
+        $task = null;
 
         try {
+            $task = Task::query()->findOrFail($this->taskId);
+
+            $task->fill([
+                'status' => TaskStatus::PROCESSING,
+                'started_at' => $task->started_at ?? now(),
+                'error_message' => null,
+            ])->save();
+
             RunLog::query()->create([
                 'task_id' => $task->id,
                 'level' => 'info',
@@ -61,21 +63,27 @@ class LogTaskRequestJob implements ShouldQueue
                 ],
             ]);
 
-            $task->forceFill([
+            $task->fill([
                 'status' => TaskStatus::COMPLETED,
                 'finished_at' => now(),
             ])->save();
         } catch (\Throwable $exception) {
-            $task->forceFill([
-                'status' => TaskStatus::FAILED,
-                'error_message' => $exception->getMessage(),
-                'finished_at' => now(),
-            ])->save();
+            if ($task !== null) {
+                try {
+                    $task->fill([
+                        'status' => TaskStatus::FAILED,
+                        'error_message' => $exception->getMessage(),
+                        'finished_at' => now(),
+                    ])->save();
+                } catch (\Throwable) {
+                    // Best-effort status update only; original exception is rethrown below.
+                }
+            }
 
             Log::error('Task dispatch job failed', [
-                'task_public_id' => $task->public_id,
-                'task_id' => $task->id,
-                'user_id' => $task->user_id,
+                'task_public_id' => $task?->public_id,
+                'task_id' => $task?->id ?? $this->taskId,
+                'user_id' => $task?->user_id,
                 'exception' => $exception::class,
                 'message' => $exception->getMessage(),
             ]);
