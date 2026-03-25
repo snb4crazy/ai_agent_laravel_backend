@@ -17,6 +17,14 @@ For now:
 - the queue job only appends another log entry using the already persisted task payload,
 - no AI processing is implemented yet.
 
+Queue naming convention:
+
+- queue names are managed in code via `app/Enums/QueueEnum.php`
+- queue names are intentionally short (`task`, `service`, etc.)
+- `REDIS_PREFIX` in `.env` provides app-level namespacing for all Redis keys
+- Redis stores queue jobs under: `{REDIS_PREFIX}queues:{queue_name}`
+  - example: `ai_agent:queues:task` (with `REDIS_PREFIX=ai_agent:`)
+
 ## Base URL
 
 - Local: `http://localhost:8000`
