@@ -17,6 +17,14 @@ For now:
 - the queue job only appends another log entry using the already persisted task payload,
 - no AI processing is implemented yet.
 
+Queue naming convention:
+
+- queue names are managed in code via `app/Enums/QueueEnum.php`
+- queue names are intentionally short (`task`, `service`, etc.)
+- `REDIS_PREFIX` in `.env` provides app-level namespacing for all Redis keys
+- Redis stores queue jobs under: `{REDIS_PREFIX}queues:{queue_name}`
+  - example: `ai_agent:queues:task` (with `REDIS_PREFIX=ai_agent:`)
+
 ## Base URL
 
 - Local: `http://localhost:8000`
@@ -62,6 +70,46 @@ The command asks for all mandatory fields:
   "access_token": "<SANCTUM_TOKEN>"
 }
 ```
+
+## Authentication Errors (`401`) for Protected Endpoints
+
+All protected endpoints (`POST /tasks`, `GET /tasks/{task_public_id}`, `GET /tasks/{task_public_id}/logs`)
+return `401` when authentication fails.
+
+### Missing / invalid / revoked token
+
+Returned when no bearer token is sent, the token format is invalid, or the token is not found.
+
+```json
+{
+  "error": {
+    "code": "UNAUTHENTICATED",
+    "message": "Unauthenticated."
+  }
+}
+```
+
+### Expired token
+
+Returned when a bearer token exists but is expired.
+
+```json
+{
+  "error": {
+    "code": "TOKEN_EXPIRED",
+    "message": "Your session has expired. Please log in again.",
+    "action": "relogin"
+  }
+}
+```
+
+Frontend handling recommendation:
+
+- If `error.code === "TOKEN_EXPIRED"` or `error.action === "relogin"`: clear local auth state and redirect to login.
+- If `error.code === "UNAUTHENTICATED"`: treat as unauthorized and redirect to login.
+- For all other API errors: keep standard error handling flow.
+
+Note: `TOKEN_EXPIRED` is returned when token expiration is configured and the token has passed its expiry time.
 
 ## Endpoint: Dispatch Task (queued)
 

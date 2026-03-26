@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Api;
 
+use App\Enums\QueueEnum;
+use App\Enums\TaskStatus;
 use App\Jobs\LogTaskRequestJob;
 use App\Models\Task;
 use App\Models\User;
@@ -64,7 +66,8 @@ class TaskDispatchFlowTest extends TestCase
         $this->assertSame($payload['type'], $task->type);
 
         Queue::assertPushed(LogTaskRequestJob::class, function (LogTaskRequestJob $job) use ($task): bool {
-            return $job->taskId === $task->id;
+            return $job->taskId === $task->id
+                && $job->queue === QueueEnum::TASK;
         });
     }
 
@@ -84,8 +87,9 @@ class TaskDispatchFlowTest extends TestCase
                 'input' => 'invalid',
             ]);
 
-        $response->assertUnprocessable();
-        $response->assertJsonValidationErrors(['type', 'input']);
+        $response->assertUnprocessable()
+            ->assertJsonPath('error.code', 'VALIDATION_ERROR')
+            ->assertJsonStructure(['error' => ['code', 'message', 'errors' => ['type', 'input']]]);
     }
 
     public function test_authenticated_dispatch_persists_task_and_log_in_database(): void
@@ -115,7 +119,7 @@ class TaskDispatchFlowTest extends TestCase
             'public_id' => $taskPublicId,
             'user_id' => $user->id,
             'type' => 'chat.completion',
-            'status' => 'queued',
+            'status' => TaskStatus::COMPLETED,
         ]);
 
         $taskId = (int) $this->app['db']

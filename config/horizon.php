@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\QueueEnum;
 use Illuminate\Support\Str;
 
 return [
@@ -97,7 +98,8 @@ return [
     */
 
     'waits' => [
-        'redis:default' => 60,
+        'redis:'.QueueEnum::TASK => 60,
+        'redis:'.QueueEnum::SERVICE => 60,
     ],
 
     /*
@@ -197,9 +199,22 @@ return [
     */
 
     'defaults' => [
-        'supervisor-1' => [
+        'task-supervisor' => [
             'connection' => 'redis',
-            'queue' => ['default'],
+            'queue' => [QueueEnum::TASK],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 1,
+            'timeout' => 60,
+            'nice' => 0,
+        ],
+        'service-supervisor' => [
+            'connection' => 'redis',
+            'queue' => [QueueEnum::SERVICE],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
             'maxProcesses' => 1,
@@ -214,16 +229,24 @@ return [
 
     'environments' => [
         'production' => [
-            'supervisor-1' => [
+            'task-supervisor' => [
                 'maxProcesses' => 10,
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
+            ],
+            'service-supervisor' => [
+                'maxProcesses' => 5,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
         ],
 
         'local' => [
-            'supervisor-1' => [
+            'task-supervisor' => [
                 'maxProcesses' => 3,
+            ],
+            'service-supervisor' => [
+                'maxProcesses' => 1,
             ],
         ],
     ],
