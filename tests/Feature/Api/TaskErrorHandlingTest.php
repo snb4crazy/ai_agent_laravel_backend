@@ -82,4 +82,3 @@ class TaskErrorHandlingTest extends TestCase
             ->assertJsonStructure(['error' => ['code', 'message']]);
     }
 }
-
