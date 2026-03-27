@@ -150,6 +150,9 @@ Key tables include:
 - API docs: [`docs/api-endpoints.md`](docs/api-endpoints.md)
 - CI/CD docs: [`docs/github-actions.md`](docs/github-actions.md)
 - Supervisor setup: [`docs/supervisor-setup.md`](docs/supervisor-setup.md)
+- AI adapters: [`docs/ai-services.md`](docs/ai-services.md)
+- AI request flow: [`docs/ai-request-flow.md`](docs/ai-request-flow.md)
+- Action stubs: [`docs/action-stubs.md`](docs/action-stubs.md)
 - Implementation log: [`docs/actions-log.md`](docs/actions-log.md)
 - Roadmap: [`docs/roadmap.md`](docs/roadmap.md)
 
