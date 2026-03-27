@@ -206,6 +206,38 @@ class TaskDispatchFlowTest extends TestCase
         $response->assertJsonPath('data.1.event_type', 'task.job_received');
     }
 
+    public function test_action_type_executes_stub_and_persists_action_result(): void
+    {
+        $user = User::factory()->create();
+
+        $token = $this->postJson('/api/v1/auth/token', [
+            'email' => $user->email,
+            'password' => 'password',
+            'device_name' => 'actions-check',
+        ])->json('access_token');
+
+        $taskPublicId = $this
+            ->withToken($token)
+            ->postJson('/api/v1/tasks', [
+                'type' => 'analyze_sentiment',
+                'input' => ['text' => 'This is great'],
+            ])
+            ->assertAccepted()
+            ->json('task_public_id');
+
+        $task = Task::query()->where('public_id', $taskPublicId)->firstOrFail();
+
+        $this->assertSame(TaskStatus::COMPLETED, $task->status);
+        $this->assertSame('analyze_sentiment', $task->meta_json['action_name'] ?? null);
+        $this->assertSame('positive', $task->meta_json['action_result']['label'] ?? null);
+
+        $this->assertDatabaseHas('run_logs', [
+            'task_id' => $task->id,
+            'event_type' => 'task.action_executed',
+            'message' => 'Action stub executed for task payload',
+        ]);
+    }
+
     public function test_user_cannot_fetch_another_users_task_or_logs(): void
     {
         $owner = User::factory()->create();
