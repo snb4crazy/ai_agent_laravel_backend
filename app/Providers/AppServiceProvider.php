@@ -2,6 +2,11 @@
 
 namespace App\Providers;
 
+use App\Services\AI\AnthropicServiceStub;
+use App\Services\AI\AzureOpenAIService;
+use App\Services\AI\Contracts\AIServiceInterface;
+use App\Services\AI\OllamaServiceStub;
+use App\Services\AI\OpenAIService;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\ServiceProvider;
 
@@ -12,7 +17,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(AIServiceInterface::class, function (): AIServiceInterface {
+            return match (config('services.ai.provider', 'azure')) {
+                'openai' => $this->app->make(OpenAIService::class),
+                'ollama' => $this->app->make(OllamaServiceStub::class),
+                'anthropic' => $this->app->make(AnthropicServiceStub::class),
+                default => $this->app->make(AzureOpenAIService::class),
+            };
+        });
     }
 
     /**
