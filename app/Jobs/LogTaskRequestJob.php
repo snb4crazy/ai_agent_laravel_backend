@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Enums\TaskStatus;
 use App\Models\RunLog;
 use App\Models\Task;
+use App\Services\TaskActionService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -23,7 +24,7 @@ class LogTaskRequestJob implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(): void
+    public function handle(TaskActionService $taskActionService): void
     {
         $task = null;
 
@@ -51,6 +52,30 @@ class LogTaskRequestJob implements ShouldQueue
                     ],
                 ],
             ]);
+
+            $actionExecution = $taskActionService->execute($task->type, (array) $task->input_json);
+
+            if ($actionExecution['executed']) {
+                $meta = (array) ($task->meta_json ?? []);
+                $meta['action_result'] = $actionExecution['result'];
+                $meta['action_name'] = $actionExecution['action'];
+
+                $task->fill([
+                    'meta_json' => $meta,
+                ])->save();
+
+                RunLog::query()->create([
+                    'task_id' => $task->id,
+                    'level' => 'info',
+                    'event_type' => 'task.action_executed',
+                    'message' => 'Action stub executed for task payload',
+                    'context_json' => [
+                        'task_public_id' => $task->public_id,
+                        'action' => $actionExecution['action'],
+                        'result' => $actionExecution['result'],
+                    ],
+                ]);
+            }
 
             Log::info('Task dispatch job received payload', [
                 'task_public_id' => $task->public_id,
