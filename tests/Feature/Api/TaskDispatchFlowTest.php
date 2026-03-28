@@ -5,10 +5,12 @@ namespace Tests\Feature\Api;
 use App\Enums\QueueEnum;
 use App\Enums\TaskStatus;
 use App\Jobs\LogTaskRequestJob;
+use App\Jobs\PlanTaskStepsJob;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class TaskDispatchFlowTest extends TestCase
@@ -274,5 +276,146 @@ class TaskDispatchFlowTest extends TestCase
             ->withToken($otherUserToken)
             ->getJson('/api/v1/tasks/'.$task->public_id.'/logs')
             ->assertNotFound();
+    }
+
+    // -------------------------------------------------------------------------
+    // Multi-step dispatch tests
+    // -------------------------------------------------------------------------
+
+    public function test_multi_step_task_dispatches_plan_job_on_service_queue(): void
+    {
+        Queue::fake();
+
+        $user = User::factory()->create();
+
+        $token = $this->postJson('/api/v1/auth/token', [
+            'email'       => $user->email,
+            'password'    => 'password',
+            'device_name' => 'phpunit-multi',
+        ])->json('access_token');
+
+        $response = $this
+            ->withToken($token)
+            ->postJson('/api/v1/tasks', [
+                'type'  => 'multi_step_task',
+                'input' => ['prompt' => 'Analyse this text'],
+            ]);
+
+        $response->assertAccepted()->assertJson(['status' => TaskStatus::PENDING_PLANNING]);
+
+        $taskPublicId = $response->json('task_public_id');
+        $task = Task::query()->where('public_id', $taskPublicId)->firstOrFail();
+
+        $this->assertSame(TaskStatus::PENDING_PLANNING, $task->status);
+
+        Queue::assertPushed(PlanTaskStepsJob::class, function (PlanTaskStepsJob $job) use ($task): bool {
+            return $job->taskId === $task->id
+                && $job->queue === QueueEnum::SERVICE;
+        });
+
+        Queue::assertNotPushed(LogTaskRequestJob::class);
+    }
+
+    /**
+     * @dataProvider multiStepTypeProvider
+     */
+    #[DataProvider('multiStepTypeProvider')]
+    public function test_all_multi_step_types_dispatch_plan_job(string $type, array $input): void
+    {
+        Queue::fake();
+
+        $user = User::factory()->create();
+
+        $token = $this->postJson('/api/v1/auth/token', [
+            'email'       => $user->email,
+            'password'    => 'password',
+            'device_name' => 'phpunit-types',
+        ])->json('access_token');
+
+        $response = $this
+            ->withToken($token)
+            ->postJson('/api/v1/tasks', ['type' => $type, 'input' => $input]);
+
+        $response->assertAccepted()->assertJson(['status' => TaskStatus::PENDING_PLANNING]);
+
+        Queue::assertPushed(PlanTaskStepsJob::class);
+        Queue::assertNotPushed(LogTaskRequestJob::class);
+    }
+
+    /** @return array<string, array{0: string, 1: array<string, mixed>}> */
+    public static function multiStepTypeProvider(): array
+    {
+        return [
+            'multi_step_task'       => ['multi_step_task',       ['prompt' => 'Hello']],
+            'scrape_and_summarize'  => ['scrape_and_summarize',  ['url' => 'https://example.com']],
+            'classify_and_reply'    => ['classify_and_reply',    ['prompt' => 'Classify me']],
+        ];
+    }
+
+    public function test_non_multi_step_type_still_dispatches_log_job(): void
+    {
+        Queue::fake();
+
+        $user = User::factory()->create();
+
+        $token = $this->postJson('/api/v1/auth/token', [
+            'email'       => $user->email,
+            'password'    => 'password',
+            'device_name' => 'phpunit-legacy',
+        ])->json('access_token');
+
+        $this
+            ->withToken($token)
+            ->postJson('/api/v1/tasks', [
+                'type'  => 'chat.completion',
+                'input' => ['prompt' => 'Hello'],
+            ])
+            ->assertAccepted()
+            ->assertJson(['status' => TaskStatus::QUEUED]);
+
+        Queue::assertPushed(LogTaskRequestJob::class);
+        Queue::assertNotPushed(PlanTaskStepsJob::class);
+    }
+
+    public function test_multi_step_pipeline_completes_and_steps_appear_in_status_response(): void
+    {
+        // Queue is sync in testing — the full pipeline runs inline.
+        $user = User::factory()->create();
+
+        $token = $this->postJson('/api/v1/auth/token', [
+            'email'       => $user->email,
+            'password'    => 'password',
+            'device_name' => 'phpunit-pipeline',
+        ])->json('access_token');
+
+        $taskPublicId = $this
+            ->withToken($token)
+            ->postJson('/api/v1/tasks', [
+                'type'  => 'multi_step_task',
+                'input' => ['prompt' => 'This is great'],
+            ])
+            ->assertAccepted()
+            ->json('task_public_id');
+
+        // With sync queue the entire pipeline has already run by now.
+        $task = Task::query()->where('public_id', $taskPublicId)->firstOrFail();
+        $this->assertSame(TaskStatus::COMPLETED, $task->status);
+        $this->assertNotNull($task->output_json);
+
+        $response = $this
+            ->withToken($token)
+            ->getJson('/api/v1/tasks/'.$taskPublicId)
+            ->assertOk();
+
+        $steps = $response->json('data.steps');
+        $this->assertCount(3, $steps);
+        $this->assertSame('analyze_sentiment', $steps[0]['action_name']);
+        $this->assertSame('generate_reply',    $steps[1]['action_name']);
+        $this->assertSame('save_result',       $steps[2]['action_name']);
+
+        foreach ($steps as $step) {
+            $this->assertSame('completed', $step['status']);
+            $this->assertNotNull($step['output']);
+        }
     }
 }
