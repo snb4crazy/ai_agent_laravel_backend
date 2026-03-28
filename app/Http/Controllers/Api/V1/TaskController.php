@@ -8,8 +8,10 @@ use App\Exceptions\TaskException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreTaskDispatchRequest;
 use App\Jobs\LogTaskRequestJob;
+use App\Jobs\PlanTaskStepsJob;
 use App\Models\RunLog;
 use App\Models\Task;
+use App\Models\TaskStep;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -24,12 +26,16 @@ class TaskController extends Controller
     {
         $validated = $request->validated();
 
+        /** Multi-step task types that use the plan → execute → compile pipeline. */
+        $multiStepTypes = ['multi_step_task', 'scrape_and_summarize', 'classify_and_reply'];
+        $isMultiStep = in_array($validated['type'], $multiStepTypes, true);
+
         try {
             $task = Task::query()->create([
                 'public_id' => (string) Str::uuid(),
                 'user_id' => $request->user()?->id,
                 'type' => $validated['type'],
-                'status' => TaskStatus::QUEUED,
+                'status' => $isMultiStep ? TaskStatus::PENDING_PLANNING : TaskStatus::QUEUED,
                 'input_json' => $validated['input'],
                 'meta_json' => $validated['meta'] ?? null,
             ]);
@@ -52,7 +58,11 @@ class TaskController extends Controller
                 'input' => $validated,
             ]);
 
-            LogTaskRequestJob::dispatch($task->id)->onQueue(QueueEnum::TASK);
+            if ($isMultiStep) {
+                PlanTaskStepsJob::dispatch($task->id)->onQueue(QueueEnum::SERVICE);
+            } else {
+                LogTaskRequestJob::dispatch($task->id)->onQueue(QueueEnum::TASK);
+            }
         } catch (\Throwable $e) {
             throw TaskException::dispatchFailed($e);
         }
@@ -78,12 +88,23 @@ class TaskController extends Controller
                 'status' => $task->status,
                 'priority' => $task->priority,
                 'input' => $task->input_json,
+                'output' => $task->output_json,
                 'meta' => $task->meta_json,
                 'error_message' => $task->error_message,
                 'created_at' => optional($task->created_at)?->toIso8601String(),
                 'updated_at' => optional($task->updated_at)?->toIso8601String(),
                 'started_at' => optional($task->started_at)?->toIso8601String(),
                 'finished_at' => optional($task->finished_at)?->toIso8601String(),
+                'steps' => $task->steps->map(fn (TaskStep $step): array => [
+                    'action_name'    => $step->action_name,
+                    'sequence_order' => $step->sequence_order,
+                    'status'         => $step->status,
+                    'input'          => $step->input_json,
+                    'output'         => $step->output_json,
+                    'error_message'  => $step->error_message,
+                    'started_at'     => optional($step->started_at)?->toIso8601String(),
+                    'finished_at'    => optional($step->finished_at)?->toIso8601String(),
+                ])->all(),
             ],
         ]);
     }

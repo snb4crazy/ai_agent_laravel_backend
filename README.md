@@ -153,6 +153,7 @@ Key tables include:
 - AI adapters: [`docs/ai-services.md`](docs/ai-services.md)
 - AI request flow: [`docs/ai-request-flow.md`](docs/ai-request-flow.md)
 - Action stubs: [`docs/action-stubs.md`](docs/action-stubs.md)
+- Multi-step flow: [`docs/multi-step-flow.md`](docs/multi-step-flow.md)
 - Implementation log: [`docs/actions-log.md`](docs/actions-log.md)
 - Roadmap: [`docs/roadmap.md`](docs/roadmap.md)
 
