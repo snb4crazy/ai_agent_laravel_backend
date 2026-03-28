@@ -19,6 +19,7 @@ class Task extends Model
         'priority',
         'idempotency_key',
         'input_json',
+        'output_json',
         'meta_json',
         'scheduled_for',
         'started_at',
@@ -31,6 +32,7 @@ class Task extends Model
         return [
             'input_json' => 'array',
             'meta_json' => 'array',
+            'output_json' => 'array',
             'scheduled_for' => 'datetime',
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
@@ -40,6 +42,11 @@ class Task extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function steps(): HasMany
+    {
+        return $this->hasMany(TaskStep::class)->orderBy('sequence_order');
     }
 
     public function runs(): HasMany
