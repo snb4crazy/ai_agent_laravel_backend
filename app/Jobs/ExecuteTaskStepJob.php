@@ -5,10 +5,10 @@ namespace App\Jobs;
 use App\Enums\QueueEnum;
 use App\Enums\TaskStatus;
 use App\Enums\TaskStepStatus;
-use App\Models\RunLog;
 use App\Models\Task;
 use App\Models\TaskStep;
 use App\Services\TaskActionService;
+use App\Traits\LogsTaskActivity;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Log;
  */
 class ExecuteTaskStepJob implements ShouldQueue
 {
+    use LogsTaskActivity;
     use Queueable;
 
     /**
@@ -58,12 +59,12 @@ class ExecuteTaskStepJob implements ShouldQueue
             // Mark step as executing.
             // -----------------------------------------------------------------
             $step->fill([
-                'status'     => TaskStepStatus::EXECUTING,
+                'status' => TaskStepStatus::EXECUTING,
                 'started_at' => now(),
             ])->save();
 
             $this->log($task, 'info', 'task_step.executing', 'Executing step '.$step->sequence_order, [
-                'action_name'    => $step->action_name,
+                'action_name' => $step->action_name,
                 'sequence_order' => $step->sequence_order,
             ]);
 
@@ -81,16 +82,16 @@ class ExecuteTaskStepJob implements ShouldQueue
             // Persist the step result.
             // -----------------------------------------------------------------
             $step->fill([
-                'status'      => TaskStepStatus::COMPLETED,
+                'status' => TaskStepStatus::COMPLETED,
                 'output_json' => $result['executed'] ? $result['result'] : ['status' => 'no_action_found'],
                 'finished_at' => now(),
             ])->save();
 
             $this->log($task, 'info', 'task_step.completed', 'Step '.$step->sequence_order.' completed', [
-                'action_name'    => $step->action_name,
+                'action_name' => $step->action_name,
                 'sequence_order' => $step->sequence_order,
-                'executed'       => $result['executed'],
-                'result'         => $result['result'],
+                'executed' => $result['executed'],
+                'result' => $result['result'],
             ]);
 
             // -----------------------------------------------------------------
@@ -103,9 +104,9 @@ class ExecuteTaskStepJob implements ShouldQueue
             // Mark the step as failed.
             try {
                 $step->fill([
-                    'status'        => TaskStepStatus::FAILED,
+                    'status' => TaskStepStatus::FAILED,
                     'error_message' => $e->getMessage(),
-                    'finished_at'   => now(),
+                    'finished_at' => now(),
                 ])->save();
             } catch (\Throwable) {
                 // Best-effort.
@@ -114,15 +115,15 @@ class ExecuteTaskStepJob implements ShouldQueue
             // Mark the parent task as failed.
             try {
                 $task->fill([
-                    'status'        => TaskStatus::FAILED,
+                    'status' => TaskStatus::FAILED,
                     'error_message' => 'Step '.$step->sequence_order.' ('.$step->action_name.') failed: '.$e->getMessage(),
-                    'finished_at'   => now(),
+                    'finished_at' => now(),
                 ])->save();
 
                 $this->log($task, 'error', 'task_step.failed', 'Step '.$step->sequence_order.' failed: '.$e->getMessage(), [
-                    'action_name'    => $step->action_name,
+                    'action_name' => $step->action_name,
                     'sequence_order' => $step->sequence_order,
-                    'exception'      => $e::class,
+                    'exception' => $e::class,
                 ]);
             } catch (\Throwable) {
                 // Best-effort.
@@ -130,9 +131,9 @@ class ExecuteTaskStepJob implements ShouldQueue
 
             Log::error('ExecuteTaskStepJob failed', [
                 'task_step_id' => $this->taskStepId,
-                'task_id'      => $task->id ?? null,
-                'exception'    => $e::class,
-                'message'      => $e->getMessage(),
+                'task_id' => $task->id ?? null,
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
             ]);
 
             throw $e;
@@ -186,8 +187,8 @@ class ExecuteTaskStepJob implements ShouldQueue
             ExecuteTaskStepJob::dispatch($nextStep->id)->onQueue(QueueEnum::TASK);
 
             $this->log($task, 'info', 'task_step.next_dispatched', 'Dispatched next step '.$nextStep->sequence_order, [
-                'next_step_id'   => $nextStep->id,
-                'action_name'    => $nextStep->action_name,
+                'next_step_id' => $nextStep->id,
+                'action_name' => $nextStep->action_name,
                 'sequence_order' => $nextStep->sequence_order,
             ]);
 
@@ -201,6 +202,7 @@ class ExecuteTaskStepJob implements ShouldQueue
 
         if ($hasFailures) {
             $this->log($task, 'warning', 'task.steps_finished_with_failures', 'All steps processed but some failed; skipping compile');
+
             return;
         }
 
@@ -209,18 +211,9 @@ class ExecuteTaskStepJob implements ShouldQueue
         $this->log($task, 'info', 'task.compile_dispatched', 'All steps done – dispatching compile job');
     }
 
-    /**
-     * @param  array<string, mixed>  $extra
-     */
-    private function log(Task $task, string $level, string $event, string $message, array $extra = []): void
-    {
-        RunLog::query()->create([
-            'task_id'      => $task->id,
-            'level'        => $level,
-            'event_type'   => $event,
-            'message'      => $message,
-            'context_json' => array_merge(['task_public_id' => $task->public_id], $extra),
-        ]);
-    }
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+    // log() is provided by LogsTaskActivity trait.
+    // buildStepInput() and dispatchNext() are defined above.
 }
-

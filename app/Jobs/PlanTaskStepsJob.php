@@ -5,10 +5,10 @@ namespace App\Jobs;
 use App\Enums\QueueEnum;
 use App\Enums\TaskStatus;
 use App\Enums\TaskStepStatus;
-use App\Models\RunLog;
 use App\Models\Task;
 use App\Models\TaskStep;
 use App\Services\TaskPlannerService;
+use App\Traits\LogsTaskActivity;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Log;
  */
 class PlanTaskStepsJob implements ShouldQueue
 {
+    use LogsTaskActivity;
     use Queueable;
 
     /**
@@ -52,7 +53,7 @@ class PlanTaskStepsJob implements ShouldQueue
 
             // Mark task as actively planning.
             $task->fill([
-                'status'     => TaskStatus::PLANNING,
+                'status' => TaskStatus::PLANNING,
                 'started_at' => $task->started_at ?? now(),
             ])->save();
 
@@ -80,11 +81,11 @@ class PlanTaskStepsJob implements ShouldQueue
                 }
 
                 TaskStep::query()->create([
-                    'task_id'        => $task->id,
-                    'action_name'    => $def['action_name'],
+                    'task_id' => $task->id,
+                    'action_name' => $def['action_name'],
                     'sequence_order' => $def['sequence_order'],
-                    'input_json'     => $def['input_json'] ?? null,
-                    'status'         => TaskStepStatus::PENDING,
+                    'input_json' => $def['input_json'] ?? null,
+                    'status' => TaskStepStatus::PENDING,
                 ]);
             }
 
@@ -92,8 +93,8 @@ class PlanTaskStepsJob implements ShouldQueue
 
             $this->log($task, 'info', 'task.steps_planned', 'Steps created, dispatching execution', [
                 'step_count' => $task->steps->count(),
-                'steps'      => $task->steps->map(fn (TaskStep $s) => [
-                    'action_name'    => $s->action_name,
+                'steps' => $task->steps->map(fn (TaskStep $s) => [
+                    'action_name' => $s->action_name,
                     'sequence_order' => $s->sequence_order,
                 ])->all(),
             ]);
@@ -120,9 +121,9 @@ class PlanTaskStepsJob implements ShouldQueue
             if ($task !== null) {
                 try {
                     $task->fill([
-                        'status'        => TaskStatus::FAILED,
+                        'status' => TaskStatus::FAILED,
                         'error_message' => $e->getMessage(),
-                        'finished_at'   => now(),
+                        'finished_at' => now(),
                     ])->save();
 
                     $this->log($task, 'error', 'task.planning_failed', 'Planning job failed: '.$e->getMessage(), [
@@ -134,9 +135,9 @@ class PlanTaskStepsJob implements ShouldQueue
             }
 
             Log::error('PlanTaskStepsJob failed', [
-                'task_id'   => $this->taskId,
+                'task_id' => $this->taskId,
                 'exception' => $e::class,
-                'message'   => $e->getMessage(),
+                'message' => $e->getMessage(),
             ]);
 
             throw $e;
@@ -146,19 +147,5 @@ class PlanTaskStepsJob implements ShouldQueue
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
-
-    /**
-     * @param  array<string, mixed>  $extra
-     */
-    private function log(Task $task, string $level, string $event, string $message, array $extra = []): void
-    {
-        RunLog::query()->create([
-            'task_id'      => $task->id,
-            'level'        => $level,
-            'event_type'   => $event,
-            'message'      => $message,
-            'context_json' => array_merge(['task_public_id' => $task->public_id], $extra),
-        ]);
-    }
+    // log() is provided by LogsTaskActivity trait.
 }
-
