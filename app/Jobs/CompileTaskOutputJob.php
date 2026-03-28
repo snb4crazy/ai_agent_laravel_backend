@@ -4,9 +4,9 @@ namespace App\Jobs;
 
 use App\Enums\TaskStatus;
 use App\Enums\TaskStepStatus;
-use App\Models\RunLog;
 use App\Models\Task;
 use App\Models\TaskStep;
+use App\Traits\LogsTaskActivity;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Log;
  */
 class CompileTaskOutputJob implements ShouldQueue
 {
+    use LogsTaskActivity;
     use Queueable;
 
     /**
@@ -71,10 +72,10 @@ class CompileTaskOutputJob implements ShouldQueue
                 $aggregated[$key] = $step->output_json;
 
                 $stepSummaries[] = [
-                    'action_name'    => $step->action_name,
+                    'action_name' => $step->action_name,
                     'sequence_order' => $step->sequence_order,
-                    'status'         => $step->status,
-                    'output'         => $step->output_json,
+                    'status' => $step->status,
+                    'output' => $step->output_json,
                 ];
             }
 
@@ -86,8 +87,8 @@ class CompileTaskOutputJob implements ShouldQueue
                 ->first();
 
             $outputJson = [
-                'steps'          => $stepSummaries,
-                'step_outputs'   => $aggregated,
+                'steps' => $stepSummaries,
+                'step_outputs' => $aggregated,
                 'primary_result' => $lastCompleted?->output_json,
             ];
 
@@ -95,7 +96,7 @@ class CompileTaskOutputJob implements ShouldQueue
             // Persist and mark the task complete.
             // -----------------------------------------------------------------
             $task->fill([
-                'status'      => TaskStatus::COMPLETED,
+                'status' => TaskStatus::COMPLETED,
                 'output_json' => $outputJson,
                 'finished_at' => now(),
             ])->save();
@@ -108,9 +109,9 @@ class CompileTaskOutputJob implements ShouldQueue
             if ($task !== null) {
                 try {
                     $task->fill([
-                        'status'        => TaskStatus::FAILED,
+                        'status' => TaskStatus::FAILED,
                         'error_message' => 'Compile failed: '.$e->getMessage(),
-                        'finished_at'   => now(),
+                        'finished_at' => now(),
                     ])->save();
 
                     $this->log($task, 'error', 'task.compile_failed', 'Compile job failed: '.$e->getMessage(), [
@@ -122,9 +123,9 @@ class CompileTaskOutputJob implements ShouldQueue
             }
 
             Log::error('CompileTaskOutputJob failed', [
-                'task_id'   => $this->taskId,
+                'task_id' => $this->taskId,
                 'exception' => $e::class,
-                'message'   => $e->getMessage(),
+                'message' => $e->getMessage(),
             ]);
 
             throw $e;
@@ -134,19 +135,5 @@ class CompileTaskOutputJob implements ShouldQueue
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
-
-    /**
-     * @param  array<string, mixed>  $extra
-     */
-    private function log(Task $task, string $level, string $event, string $message, array $extra = []): void
-    {
-        RunLog::query()->create([
-            'task_id'      => $task->id,
-            'level'        => $level,
-            'event_type'   => $event,
-            'message'      => $message,
-            'context_json' => array_merge(['task_public_id' => $task->public_id], $extra),
-        ]);
-    }
+    // log() is provided by LogsTaskActivity trait.
 }
-

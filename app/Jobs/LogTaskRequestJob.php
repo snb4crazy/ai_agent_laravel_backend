@@ -3,15 +3,16 @@
 namespace App\Jobs;
 
 use App\Enums\TaskStatus;
-use App\Models\RunLog;
 use App\Models\Task;
 use App\Services\TaskActionService;
+use App\Traits\LogsTaskActivity;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 
 class LogTaskRequestJob implements ShouldQueue
 {
+    use LogsTaskActivity;
     use Queueable;
 
     /**
@@ -37,19 +38,12 @@ class LogTaskRequestJob implements ShouldQueue
                 'error_message' => null,
             ])->save();
 
-            RunLog::query()->create([
-                'task_id' => $task->id,
-                'level' => 'info',
-                'event_type' => 'task.job_received',
-                'message' => 'Queue job received persisted task payload',
-                'context_json' => [
-                    'task_public_id' => $task->public_id,
-                    'user_id' => $task->user_id,
-                    'input' => [
-                        'type' => $task->type,
-                        'input' => $task->input_json,
-                        'meta' => $task->meta_json,
-                    ],
+            $this->log($task, 'info', 'task.job_received', 'Queue job received persisted task payload', [
+                'user_id' => $task->user_id,
+                'input' => [
+                    'type' => $task->type,
+                    'input' => $task->input_json,
+                    'meta' => $task->meta_json,
                 ],
             ]);
 
@@ -64,16 +58,9 @@ class LogTaskRequestJob implements ShouldQueue
                     'meta_json' => $meta,
                 ])->save();
 
-                RunLog::query()->create([
-                    'task_id' => $task->id,
-                    'level' => 'info',
-                    'event_type' => 'task.action_executed',
-                    'message' => 'Action stub executed for task payload',
-                    'context_json' => [
-                        'task_public_id' => $task->public_id,
-                        'action' => $actionExecution['action'],
-                        'result' => $actionExecution['result'],
-                    ],
+                $this->log($task, 'info', 'task.action_executed', 'Action stub executed for task payload', [
+                    'action' => $actionExecution['action'],
+                    'result' => $actionExecution['result'],
                 ]);
             }
 
