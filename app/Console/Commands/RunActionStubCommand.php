@@ -5,13 +5,24 @@ namespace App\Console\Commands;
 use App\Services\TaskActionService;
 use Illuminate\Console\Command;
 
+/**
+ * Developer utility to run any registered action directly from the CLI.
+ *
+ * This is a TEST/DEBUG tool only.  In production the same actions are called
+ * from within ExecuteTaskStepJob (the queue boundary).
+ *
+ * Usage:
+ *   php artisan actions:run analyze_sentiment '{"text":"This is great"}'
+ *   php artisan actions:run scrape_url '{"url":"https://example.com"}'
+ */
 class RunActionStubCommand extends Command
 {
     protected $signature = 'actions:run {action} {inputJson={}}';
 
+    /** @var array<int, string> */
     protected $aliases = ['actions:run-stub'];
 
-    protected $description = 'Run a predefined action and print result as JSON.';
+    protected $description = 'Run a registered action and print the result as JSON. (dev/debug tool)';
 
     public function handle(TaskActionService $taskActionService): int
     {
