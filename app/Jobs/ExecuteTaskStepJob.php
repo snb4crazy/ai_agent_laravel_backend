@@ -157,6 +157,11 @@ class ExecuteTaskStepJob implements ShouldQueue
     {
         $input = (array) ($step->input_json ?? $step->task->input_json ?? []);
 
+        // Provide task context to actions that want to persist structured logs.
+        $input['task_id'] = $step->task_id;
+        $input['task_step_id'] = $step->id;
+        $input['task_public_id'] = $step->task->public_id;
+
         /** @var TaskStep|null $previousStep */
         $previousStep = $step->task->steps()
             ->where('sequence_order', '<', $step->sequence_order)
