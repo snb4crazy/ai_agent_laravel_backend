@@ -7,7 +7,7 @@ use Tests\TestCase;
 
 class TaskActionServiceTest extends TestCase
 {
-    public function test_known_action_returns_stubbed_result(): void
+    public function test_known_action_returns_real_result(): void
     {
         $service = app(TaskActionService::class);
 
@@ -15,7 +15,7 @@ class TaskActionServiceTest extends TestCase
 
         $this->assertTrue($result['executed']);
         $this->assertSame('analyze_sentiment', $result['action']);
-        $this->assertSame('stubbed', $result['result']['status']);
+        $this->assertSame('ok', $result['result']['status']);
         $this->assertSame('positive', $result['result']['label']);
     }
 

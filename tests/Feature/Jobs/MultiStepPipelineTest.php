@@ -293,7 +293,7 @@ class MultiStepPipelineTest extends TestCase
             'action_name'    => 'analyze_sentiment',
             'sequence_order' => 1,
             'status'         => TaskStepStatus::COMPLETED,
-            'output_json'    => ['label' => 'positive', 'score' => 0.8, 'status' => 'stubbed'],
+            'output_json'    => ['label' => 'positive', 'score' => 0.8, 'status' => 'ok'],
             'started_at'     => now()->subSeconds(2),
             'finished_at'    => now()->subSecond(),
         ]);
@@ -303,7 +303,7 @@ class MultiStepPipelineTest extends TestCase
             'action_name'    => 'save_result',
             'sequence_order' => 2,
             'status'         => TaskStepStatus::COMPLETED,
-            'output_json'    => ['saved' => true, 'status' => 'stubbed'],
+            'output_json'    => ['saved' => true, 'status' => 'ok'],
             'started_at'     => now()->subSecond(),
             'finished_at'    => now(),
         ]);
@@ -319,7 +319,7 @@ class MultiStepPipelineTest extends TestCase
         $this->assertCount(2, $task->output_json['steps']);
 
         // Primary result should be the last completed step's output.
-        $this->assertSame(['saved' => true, 'status' => 'stubbed'], $task->output_json['primary_result']);
+        $this->assertSame(['saved' => true, 'status' => 'ok'], $task->output_json['primary_result']);
     }
 
     public function test_compile_job_is_idempotent_for_already_completed_task(): void
