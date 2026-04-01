@@ -15,12 +15,31 @@ class ClassifyIntentActionStub implements ActionStubInterface
     {
         $text = strtolower((string) ($input['text'] ?? ''));
 
-        $intent = str_contains($text, 'refund') ? 'refund_request' : 'general_question';
+        $intentMap = [
+            'refund_request' => ['refund', 'money back', 'charged', 'cancel order'],
+            'billing_question' => ['invoice', 'billing', 'payment', 'card'],
+            'technical_issue' => ['error', 'bug', 'not working', 'failed', 'crash'],
+            'sales_question' => ['price', 'pricing', 'plan', 'demo', 'quote'],
+        ];
+
+        foreach ($intentMap as $intent => $keywords) {
+            foreach ($keywords as $keyword) {
+                if (str_contains($text, $keyword)) {
+                    return [
+                        'intent' => $intent,
+                        'matched_keyword' => $keyword,
+                        'confidence' => 0.85,
+                        'status' => 'ok',
+                    ];
+                }
+            }
+        }
 
         return [
-            'intent' => $intent,
-            'confidence' => 0.7,
-            'status' => 'stubbed',
+            'intent' => 'general_question',
+            'matched_keyword' => null,
+            'confidence' => 0.5,
+            'status' => 'ok',
         ];
     }
 }
