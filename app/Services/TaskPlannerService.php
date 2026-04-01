@@ -21,7 +21,6 @@ class TaskPlannerService
      *   - sequence_order (int)   – 1-based, controls execution order
      *   - input_json   (array)   – forwarded to the action's handle() method
      *
-     * @param  Task  $task
      * @return array<int, array{action_name: string, sequence_order: int, input_json: array<string, mixed>}>
      */
     public function plan(Task $task): array
@@ -51,51 +50,67 @@ class TaskPlannerService
         return match ($type) {
             'multi_step_task' => [
                 [
-                    'action_name'    => 'analyze_sentiment',
+                    'action_name' => 'analyze_sentiment',
                     'sequence_order' => 1,
-                    'input_json'     => ['text' => $input['prompt'] ?? ''],
+                    'input_json' => ['text' => $input['prompt'] ?? ''],
                 ],
                 [
-                    'action_name'    => 'generate_reply',
+                    'action_name' => 'generate_reply',
                     'sequence_order' => 2,
-                    'input_json'     => ['text' => $input['prompt'] ?? ''],
+                    'input_json' => ['text' => $input['prompt'] ?? ''],
                 ],
                 [
-                    'action_name'    => 'save_result',
+                    'action_name' => 'save_result',
                     'sequence_order' => 3,
-                    'input_json'     => ['prompt' => $input['prompt'] ?? ''],
+                    'input_json' => ['prompt' => $input['prompt'] ?? ''],
                 ],
             ],
             'scrape_and_summarize' => [
                 [
-                    'action_name'    => 'scrape_url',
+                    'action_name' => 'scrape_url',
                     'sequence_order' => 1,
-                    'input_json'     => ['url' => $input['url'] ?? ''],
+                    'input_json' => ['url' => $input['url'] ?? ''],
                 ],
                 [
-                    'action_name'    => 'summarize_text',
+                    'action_name' => 'summarize_text',
                     'sequence_order' => 2,
-                    'input_json'     => ['text' => ''],   // populated from previous step at runtime
+                    'input_json' => ['text' => ''],   // populated from previous step at runtime
                 ],
             ],
             'classify_and_reply' => [
                 [
-                    'action_name'    => 'classify_intent',
+                    'action_name' => 'classify_intent',
                     'sequence_order' => 1,
-                    'input_json'     => ['text' => $input['prompt'] ?? ''],
+                    'input_json' => ['text' => $input['prompt'] ?? ''],
                 ],
                 [
-                    'action_name'    => 'generate_reply',
+                    'action_name' => 'generate_reply',
                     'sequence_order' => 2,
-                    'input_json'     => ['text' => $input['prompt'] ?? ''],
+                    'input_json' => ['text' => $input['prompt'] ?? ''],
+                ],
+            ],
+            'ask_ai_once' => [
+                [
+                    'action_name' => 'ask_ai',
+                    'sequence_order' => 1,
+                    'input_json' => [
+                        'prompt' => $input['prompt'] ?? '',
+                        'provider' => $input['provider'] ?? null,
+                        'model' => $input['model'] ?? null,
+                    ],
+                ],
+                [
+                    'action_name' => 'save_result',
+                    'sequence_order' => 2,
+                    'input_json' => ['prompt' => $input['prompt'] ?? ''],
                 ],
             ],
             // Unknown type: single no-op step so the task can still transition.
             default => [
                 [
-                    'action_name'    => 'save_result',
+                    'action_name' => 'save_result',
                     'sequence_order' => 1,
-                    'input_json'     => $input,
+                    'input_json' => $input,
                 ],
             ],
         };
@@ -105,7 +120,7 @@ class TaskPlannerService
      * Normalise a caller-supplied steps array, ensuring each entry has the
      * required keys and that sequence_order values are contiguous.
      *
-     * @param  array<int, mixed>     $steps
+     * @param  array<int, mixed>  $steps
      * @param  array<string, mixed>  $taskInput
      * @return array<int, array{action_name: string, sequence_order: int, input_json: array<string, mixed>}>
      */
@@ -117,9 +132,9 @@ class TaskPlannerService
             $step = is_array($step) ? $step : [];
 
             $normalised[] = [
-                'action_name'    => (string) ($step['action_name'] ?? 'save_result'),
+                'action_name' => (string) ($step['action_name'] ?? 'save_result'),
                 'sequence_order' => (int) ($step['sequence_order'] ?? ($i + 1)),
-                'input_json'     => (array) ($step['input_json'] ?? $taskInput),
+                'input_json' => (array) ($step['input_json'] ?? $taskInput),
             ];
         }
 
@@ -129,4 +144,3 @@ class TaskPlannerService
         return $normalised;
     }
 }
-
