@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Actions\Stubs;
+namespace App\Actions;
 
-use App\Actions\Contracts\ActionStubInterface;
+use App\Actions\Contracts\ActionInterface;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-class SaveResultActionStub implements ActionStubInterface
+class SaveResultAction implements ActionInterface
 {
     public function name(): string
     {
