@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Actions\Stubs;
+namespace App\Actions;
 
-use App\Actions\Contracts\ActionStubInterface;
+use App\Actions\Contracts\ActionInterface;
 use Illuminate\Support\Facades\Http;
 
-class ScrapeUrlActionStub implements ActionStubInterface
+class ScrapeUrlAction implements ActionInterface
 {
     public function name(): string
     {
@@ -78,6 +78,7 @@ class ScrapeUrlActionStub implements ActionStubInterface
             return false;
         }
 
+        // Block private/loopback hosts to prevent SSRF.
         $blocked = ['localhost', '127.0.0.1', '::1'];
 
         return ! in_array($host, $blocked, true);

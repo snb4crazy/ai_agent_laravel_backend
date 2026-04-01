@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Actions\Stubs;
+namespace App\Actions;
 
-use App\Actions\Contracts\ActionStubInterface;
+use App\Actions\Contracts\ActionInterface;
 
-class GenerateReplyActionStub implements ActionStubInterface
+class GenerateReplyAction implements ActionInterface
 {
     public function name(): string
     {
