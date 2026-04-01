@@ -21,6 +21,7 @@ Configured in `config/actions.php`:
 - `classify_intent`
 - `generate_reply`
 - `save_result`
+- `ask_ai`
 
 All actions implement `App\Actions\Contracts\ActionStubInterface` (interface name kept for compatibility).
 
@@ -45,6 +46,10 @@ All actions implement `App\Actions\Contracts\ActionStubInterface` (interface nam
 - `save_result`
   - accepts any payload
   - stores JSON under `storage/app/action-results/YYYY/MM/DD/*.json`
+- `ask_ai`
+  - accepts `prompt` (or `messages`), optional `provider`, optional `model`
+  - resolves provider via `AIServiceResolver` and calls `chat()`
+  - writes `task.ai_response_received` into `run_logs`
 
 ## Where actions run
 
@@ -61,6 +66,7 @@ All actions implement `App\Actions\Contracts\ActionStubInterface` (interface nam
 php artisan actions:run analyze_sentiment '{"text":"This is great"}'
 php artisan actions:run scrape_url '{"url":"https://example.com"}'
 php artisan actions:run summarize_text '{"text":"Long text here..."}'
+php artisan actions:run ask_ai '{"prompt":"Say hello","provider":"ollama"}'
 ```
 
 Backward-compatible alias still works:
