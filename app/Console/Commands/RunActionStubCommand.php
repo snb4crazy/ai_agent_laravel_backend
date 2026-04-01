@@ -7,9 +7,11 @@ use Illuminate\Console\Command;
 
 class RunActionStubCommand extends Command
 {
-    protected $signature = 'actions:run-stub {action} {inputJson={}}';
+    protected $signature = 'actions:run {action} {inputJson={}}';
 
-    protected $description = 'Run a predefined action stub and print result as JSON.';
+    protected $aliases = ['actions:run-stub'];
+
+    protected $description = 'Run a predefined action and print result as JSON.';
 
     public function handle(TaskActionService $taskActionService): int
     {
