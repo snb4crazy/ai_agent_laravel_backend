@@ -289,15 +289,15 @@ class TaskDispatchFlowTest extends TestCase
         $user = User::factory()->create();
 
         $token = $this->postJson('/api/v1/auth/token', [
-            'email'       => $user->email,
-            'password'    => 'password',
+            'email' => $user->email,
+            'password' => 'password',
             'device_name' => 'phpunit-multi',
         ])->json('access_token');
 
         $response = $this
             ->withToken($token)
             ->postJson('/api/v1/tasks', [
-                'type'  => 'multi_step_task',
+                'type' => 'multi_step_task',
                 'input' => ['prompt' => 'Analyse this text'],
             ]);
 
@@ -327,8 +327,8 @@ class TaskDispatchFlowTest extends TestCase
         $user = User::factory()->create();
 
         $token = $this->postJson('/api/v1/auth/token', [
-            'email'       => $user->email,
-            'password'    => 'password',
+            'email' => $user->email,
+            'password' => 'password',
             'device_name' => 'phpunit-types',
         ])->json('access_token');
 
@@ -346,10 +346,158 @@ class TaskDispatchFlowTest extends TestCase
     public static function multiStepTypeProvider(): array
     {
         return [
-            'multi_step_task'       => ['multi_step_task',       ['prompt' => 'Hello']],
-            'scrape_and_summarize'  => ['scrape_and_summarize',  ['url' => 'https://example.com']],
-            'classify_and_reply'    => ['classify_and_reply',    ['prompt' => 'Classify me']],
+            'multi_step_task' => ['multi_step_task',       ['prompt' => 'Hello']],
+            'scrape_and_summarize' => ['scrape_and_summarize',  ['url' => 'https://example.com']],
+            'classify_and_reply' => ['classify_and_reply',    ['prompt' => 'Classify me']],
+            'ask_ai_once' => ['ask_ai_once',           ['prompt' => 'Say hi']],
         ];
+    }
+
+    public function test_authenticated_user_can_dispatch_predefined_pipeline_with_skips(): void
+    {
+        Queue::fake();
+
+        $user = User::factory()->create();
+
+        $token = $this->postJson('/api/v1/auth/token', [
+            'email' => $user->email,
+            'password' => 'password',
+            'device_name' => 'pipeline-all-actions',
+        ])->json('access_token');
+
+        $response = $this
+            ->withToken($token)
+            ->postJson('/api/v1/tasks/run-pipeline', [
+                'pipeline' => 'all_actions',
+                'input' => ['prompt' => 'Hello from pipeline'],
+                'input_by_action' => [
+                    'scrape_url' => ['url' => 'https://example.com'],
+                    'analyze_sentiment' => ['text' => 'This is great'],
+                ],
+                'skip_actions' => ['save_result'],
+            ]);
+
+        $response->assertAccepted()
+            ->assertJsonPath('status', TaskStatus::PENDING_PLANNING)
+            ->assertJsonPath('pipeline.name', 'all_actions')
+            ->assertJsonPath('pipeline.skipped_actions.0', 'save_result');
+
+        $task = Task::query()->where('public_id', $response->json('task_public_id'))->firstOrFail();
+
+        $steps = (array) data_get($task->input_json, 'steps', []);
+        $this->assertNotEmpty($steps);
+        $this->assertFalse(collect($steps)->contains(fn (array $step): bool => ($step['action_name'] ?? '') === 'save_result'));
+
+        Queue::assertPushed(PlanTaskStepsJob::class, function (PlanTaskStepsJob $job) use ($task): bool {
+            return $job->taskId === $task->id && $job->queue === QueueEnum::SERVICE;
+        });
+    }
+
+    public function test_pipeline_endpoint_requires_at_least_one_action_not_skipped(): void
+    {
+        $user = User::factory()->create();
+
+        $token = $this->postJson('/api/v1/auth/token', [
+            'email' => $user->email,
+            'password' => 'password',
+            'device_name' => 'pipeline-validation',
+        ])->json('access_token');
+
+        $allActions = array_keys((array) config('actions.actions', []));
+
+        $this
+            ->withToken($token)
+            ->postJson('/api/v1/tasks/run-pipeline', [
+                'skip_actions' => $allActions,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath('error.code', 'VALIDATION_ERROR')
+            ->assertJsonStructure(['error' => ['errors' => ['skip_actions']]]);
+    }
+
+    public function test_pipeline_endpoint_rejects_unknown_pipeline_name(): void
+    {
+        $user = User::factory()->create();
+
+        $token = $this->postJson('/api/v1/auth/token', [
+            'email' => $user->email,
+            'password' => 'password',
+            'device_name' => 'pipeline-name-validation',
+        ])->json('access_token');
+
+        $this
+            ->withToken($token)
+            ->postJson('/api/v1/tasks/run-pipeline', [
+                'pipeline' => 'does_not_exist',
+                'input' => ['prompt' => 'hello'],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath('error.code', 'VALIDATION_ERROR')
+            ->assertJsonStructure(['error' => ['errors' => ['pipeline']]]);
+    }
+
+    public function test_pipeline_endpoint_can_use_text_only_pipeline_definition(): void
+    {
+        Queue::fake();
+
+        $user = User::factory()->create();
+
+        $token = $this->postJson('/api/v1/auth/token', [
+            'email' => $user->email,
+            'password' => 'password',
+            'device_name' => 'pipeline-text-only',
+        ])->json('access_token');
+
+        $response = $this
+            ->withToken($token)
+            ->postJson('/api/v1/tasks/run-pipeline', [
+                'pipeline' => 'text_only',
+                'input' => ['prompt' => 'Help me with billing'],
+                'skip_actions' => ['save_result'],
+            ]);
+
+        $response->assertAccepted()
+            ->assertJsonPath('pipeline.name', 'text_only')
+            ->assertJsonPath('pipeline.steps_count', 3);
+
+        $task = Task::query()->where('public_id', $response->json('task_public_id'))->firstOrFail();
+        $steps = (array) data_get($task->input_json, 'steps', []);
+
+        $this->assertSame(['analyze_sentiment', 'classify_intent', 'generate_reply'], array_column($steps, 'action_name'));
+    }
+
+    public function test_authenticated_user_can_dispatch_single_action_pipeline(): void
+    {
+        Queue::fake();
+
+        $user = User::factory()->create();
+
+        $token = $this->postJson('/api/v1/auth/token', [
+            'email' => $user->email,
+            'password' => 'password',
+            'device_name' => 'single-action-pipeline',
+        ])->json('access_token');
+
+        $response = $this
+            ->withToken($token)
+            ->postJson('/api/v1/tasks/run-action', [
+                'action' => 'analyze_sentiment',
+                'input' => ['text' => 'This is great'],
+            ]);
+
+        $response->assertAccepted()
+            ->assertJsonPath('status', TaskStatus::PENDING_PLANNING)
+            ->assertJsonPath('action', 'analyze_sentiment');
+
+        $task = Task::query()->where('public_id', $response->json('task_public_id'))->firstOrFail();
+        $steps = (array) data_get($task->input_json, 'steps', []);
+
+        $this->assertCount(1, $steps);
+        $this->assertSame('analyze_sentiment', $steps[0]['action_name']);
+
+        Queue::assertPushed(PlanTaskStepsJob::class, function (PlanTaskStepsJob $job) use ($task): bool {
+            return $job->taskId === $task->id && $job->queue === QueueEnum::SERVICE;
+        });
     }
 
     public function test_non_multi_step_type_still_dispatches_log_job(): void
@@ -359,15 +507,15 @@ class TaskDispatchFlowTest extends TestCase
         $user = User::factory()->create();
 
         $token = $this->postJson('/api/v1/auth/token', [
-            'email'       => $user->email,
-            'password'    => 'password',
+            'email' => $user->email,
+            'password' => 'password',
             'device_name' => 'phpunit-legacy',
         ])->json('access_token');
 
         $this
             ->withToken($token)
             ->postJson('/api/v1/tasks', [
-                'type'  => 'chat.completion',
+                'type' => 'chat.completion',
                 'input' => ['prompt' => 'Hello'],
             ])
             ->assertAccepted()
@@ -383,15 +531,15 @@ class TaskDispatchFlowTest extends TestCase
         $user = User::factory()->create();
 
         $token = $this->postJson('/api/v1/auth/token', [
-            'email'       => $user->email,
-            'password'    => 'password',
+            'email' => $user->email,
+            'password' => 'password',
             'device_name' => 'phpunit-pipeline',
         ])->json('access_token');
 
         $taskPublicId = $this
             ->withToken($token)
             ->postJson('/api/v1/tasks', [
-                'type'  => 'multi_step_task',
+                'type' => 'multi_step_task',
                 'input' => ['prompt' => 'This is great'],
             ])
             ->assertAccepted()
@@ -410,8 +558,8 @@ class TaskDispatchFlowTest extends TestCase
         $steps = $response->json('data.steps');
         $this->assertCount(3, $steps);
         $this->assertSame('analyze_sentiment', $steps[0]['action_name']);
-        $this->assertSame('generate_reply',    $steps[1]['action_name']);
-        $this->assertSame('save_result',       $steps[2]['action_name']);
+        $this->assertSame('generate_reply', $steps[1]['action_name']);
+        $this->assertSame('save_result', $steps[2]['action_name']);
 
         foreach ($steps as $step) {
             $this->assertSame('completed', $step['status']);
