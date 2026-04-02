@@ -23,6 +23,8 @@ The active adapter is selected by:
 
 Binding is configured in `app/Providers/AppServiceProvider.php`.
 
+For action-level provider routing, use `App\Services\AI\AIServiceResolver`.
+
 ## Why 2 services?
 
 Recommended approach is **one interface + two adapters**:
@@ -33,6 +35,28 @@ Recommended approach is **one interface + two adapters**:
 
 If you currently only use Azure, keep `AI_PROVIDER=azure` and ignore OpenAI keys.
 Stub providers return a deterministic `stub=true` payload and do not call real APIs.
+
+## Runtime provider selection strategy
+
+For `ask_ai` action, provider is selected in this order:
+
+1. `input.provider` (per-request override)
+2. `AI_PROVIDER` default from `.env`
+
+Unknown provider values fall back to the default provider.
+
+Example action input (inside `task_steps.input_json`):
+
+```json
+{
+  "prompt": "Give me a one-line summary about Laravel queues",
+  "provider": "openai",
+  "model": "gpt-4.1-mini"
+}
+```
+
+`ask_ai` writes a run log event `task.ai_response_received` with provider, model,
+prompt excerpt, and response excerpt.
 
 ## Environment variables
 

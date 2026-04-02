@@ -152,3 +152,10 @@ Typical next integration point:
 
 - Inject `AIServiceInterface` into a processing job (for example future `ProcessAgentRunJob`) and perform actual provider calls there.
 
+Current flow (Actions = atomic PHP classes. Queue boundary = ExecuteTaskStepJob)
+API Request
+→ TaskDispatchController   (validates input, persists Task)
+→ PlanTaskStepsJob       [queue worker]   ← creates TaskStep rows
+→ ExecuteTaskStepJob   [queue worker, one per step]  ← QUEUE BOUNDARY
+→ TaskActionService::execute()
+→ ScrapeUrlAction::handle()      ← plain PHP, synchronous
