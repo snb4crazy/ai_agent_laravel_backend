@@ -148,6 +148,7 @@ Key tables include:
 ## Project docs
 
 - API docs: [`docs/api-endpoints.md`](docs/api-endpoints.md)
+- Deliverables (MVP focus): [`docs/deliverables.md`](docs/deliverables.md)
 - CI/CD docs: [`docs/github-actions.md`](docs/github-actions.md)
 - Supervisor setup: [`docs/supervisor-setup.md`](docs/supervisor-setup.md)
 - AI adapters: [`docs/ai-services.md`](docs/ai-services.md)
