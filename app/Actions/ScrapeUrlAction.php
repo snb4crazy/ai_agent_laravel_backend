@@ -4,6 +4,7 @@ namespace App\Actions;
 
 use App\Actions\Contracts\ActionInterface;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class ScrapeUrlAction implements ActionInterface
 {
@@ -108,10 +109,22 @@ class ScrapeUrlAction implements ActionInterface
             return $this->isPublicIp($normalizedHost);
         }
 
-        // Otherwise resolve the hostname and validate every resulting address.
+        // Resolve the hostname and validate every resulting address.
+        //
+        // Note: this check is inherently subject to DNS rebinding (TOCTOU) – an
+        // attacker-controlled nameserver could return a public IP here and a
+        // private IP when the underlying HTTP client resolves the name for the
+        // actual connection.  Network-level controls (e.g., egress firewall
+        // rules, VPC security groups) should be used as a complementary defence.
+        //
+        // Note: domains configured with split-horizon DNS that return both
+        // public and private addresses will be blocked by this check.  Use an
+        // explicit IP literal or a proxy if you need to reach such hosts.
         $records = dns_get_record($host, DNS_A + DNS_AAAA);
 
         if ($records === false || $records === []) {
+            Log::warning('ScrapeUrlAction: DNS resolution failed or returned no records', ['host' => $host]);
+
             return false;
         }
 
