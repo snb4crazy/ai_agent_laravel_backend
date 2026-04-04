@@ -57,7 +57,7 @@ class TaskDispatchFlowTest extends TestCase
 
         $response
             ->assertAccepted()
-            ->assertJsonStructure(['status', 'dispatch_id', 'task_public_id'])
+            ->assertJsonStructure(['status', 'dispatch_id', 'task_public_id', 'links' => ['status', 'logs']])
             ->assertJson(['status' => 'queued']);
 
         $taskPublicId = $response->json('task_public_id');
@@ -71,6 +71,9 @@ class TaskDispatchFlowTest extends TestCase
             return $job->taskId === $task->id
                 && $job->queue === QueueEnum::TASK;
         });
+
+        $response->assertJsonPath('links.status', url('/api/v1/tasks/'.$taskPublicId));
+        $response->assertJsonPath('links.logs', url('/api/v1/tasks/'.$taskPublicId.'/logs'));
     }
 
     public function test_dispatch_validation_errors_are_returned(): void
@@ -380,7 +383,8 @@ class TaskDispatchFlowTest extends TestCase
         $response->assertAccepted()
             ->assertJsonPath('status', TaskStatus::PENDING_PLANNING)
             ->assertJsonPath('pipeline.name', 'all_actions')
-            ->assertJsonPath('pipeline.skipped_actions.0', 'save_result');
+            ->assertJsonPath('pipeline.skipped_actions.0', 'save_result')
+            ->assertJsonPath('links.status', url('/api/v1/tasks/'.$response->json('task_public_id')));
 
         $task = Task::query()->where('public_id', $response->json('task_public_id'))->firstOrFail();
 
@@ -487,7 +491,8 @@ class TaskDispatchFlowTest extends TestCase
 
         $response->assertAccepted()
             ->assertJsonPath('status', TaskStatus::PENDING_PLANNING)
-            ->assertJsonPath('action', 'analyze_sentiment');
+            ->assertJsonPath('action', 'analyze_sentiment')
+            ->assertJsonPath('links.status', url('/api/v1/tasks/'.$response->json('task_public_id')));
 
         $task = Task::query()->where('public_id', $response->json('task_public_id'))->firstOrFail();
         $steps = (array) data_get($task->input_json, 'steps', []);
