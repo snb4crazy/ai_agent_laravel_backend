@@ -73,55 +73,45 @@ class TaskStep extends Model {
 }
 ```
 
-## Queue job flow (proposed for future)
+## Queue job flow (implemented)
 
 ### Job 1: PlanTaskStepsJob
 
 ```php
 // Given: task with status pending_planning
-// 1. Call AIService with task.input_json to determine steps
-// 2. Create TaskStep records in DB with action_name, sequence_order, input_json
-// 3. Update task status → planning
+// 1. Transitions task status → planning
+// 2. Calls TaskPlannerService to determine steps (AI-driven or rule-based fallback)
+// 3. Creates TaskStep records in DB with action_name, sequence_order, input_json
+// 4. Transitions task status → executing
+// 5. Dispatches ExecuteTaskStepJob for the first pending step
 ```
 
 ### Job 2: ExecuteTaskStepJob
 
 ```php
 // Given: task_step with status pending
-// 1. Update status → executing, started_at = now()
-// 2. Execute TaskActionService->execute(step.action_name, step.input_json)
-// 3. Save output_json
-// 4. Update status → completed, finished_at = now()
-// On error: status → failed, error_message
+// 1. Guards: skips if step is already completed/failed; skips if parent task failed
+// 2. Updates status → executing, started_at = now()
+// 3. Builds step input (merges task input + previous step output via previous_output key)
+// 4. Calls TaskActionService->execute(step.action_name, input)
+// 5. Saves output_json, updates status → completed, finished_at = now()
+// 6. Dispatches next pending step, or CompileTaskOutputJob when all steps are done
+// On error: step status → failed, parent task status → failed
 ```
 
 ### Job 3: CompileTaskOutputJob
 
 ```php
 // Given: task with all steps completed
-// 1. Aggregate all step outputs
-// 2. Optionally call AIService to format final output
-// 3. Save to task.output_json
-// 4. Update task status → completed
+// 1. Aggregates all step outputs
+// 2. Saves to task.output_json
+// 3. Updates task status → completed
 ```
 
-## API response (enhanced)
+## API response (current)
 
-Current:
 ```json
 GET /api/v1/tasks/{id}
-{
-  "data": {
-    "public_id": "...",
-    "status": "completed",
-    "input": {...},
-    "output": null
-  }
-}
-```
-
-Future (with steps):
-```json
 {
   "data": {
     "public_id": "...",
@@ -162,12 +152,4 @@ Future (with steps):
 - `executing` - currently running
 - `completed` - finished successfully
 - `failed` - error occurred
-
-## Next steps to implement
-
-1. Run migration: `php artisan migrate`
-2. Create `PlanTaskStepsJob` (calls AI to create steps)
-3. Create `ExecuteTaskStepJob` (runs individual step)
-4. Update `TaskController@store` to start `PlanTaskStepsJob` instead of `LogTaskRequestJob`
-5. Update `GET /api/v1/tasks/{id}` to include steps in response
 

@@ -26,6 +26,19 @@ class ScrapeUrlAction implements ActionInterface
 
         try {
             $response = Http::timeout(12)
+                ->withOptions([
+                    'allow_redirects' => [
+                        'max'         => 5,
+                        'strict'      => false,
+                        'referer'     => false,
+                        'protocols'   => ['http', 'https'],
+                        'on_redirect' => function (\Psr\Http\Message\RequestInterface $request, \Psr\Http\Message\ResponseInterface $response, \Psr\Http\Message\UriInterface $uri): void {
+                            if (! $this->isAllowedUrl((string) $uri)) {
+                                throw new \RuntimeException('Redirect to disallowed URL: '.(string) $uri);
+                            }
+                        },
+                    ],
+                ])
                 ->accept('text/html,application/xhtml+xml')
                 ->get($url);
 
@@ -78,10 +91,48 @@ class ScrapeUrlAction implements ActionInterface
             return false;
         }
 
-        // Block private/loopback hosts to prevent SSRF.
-        $blocked = ['localhost', '127.0.0.1', '::1'];
+        return $this->isPublicHost($host);
+    }
 
-        return ! in_array($host, $blocked, true);
+    private function isPublicHost(string $host): bool
+    {
+        if ($host === 'localhost') {
+            return false;
+        }
+
+        // Strip IPv6 brackets if present (e.g. [::1] → ::1).
+        $normalizedHost = trim($host, '[]');
+
+        // If the host is an IP literal, check it directly.
+        if (filter_var($normalizedHost, FILTER_VALIDATE_IP) !== false) {
+            return $this->isPublicIp($normalizedHost);
+        }
+
+        // Otherwise resolve the hostname and validate every resulting address.
+        $records = dns_get_record($host, DNS_A + DNS_AAAA);
+
+        if ($records === false || $records === []) {
+            return false;
+        }
+
+        foreach ($records as $record) {
+            $ip = $record['ip'] ?? $record['ipv6'] ?? null;
+
+            if (! is_string($ip) || ! $this->isPublicIp($ip)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function isPublicIp(string $ip): bool
+    {
+        return filter_var(
+            $ip,
+            FILTER_VALIDATE_IP,
+            FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+        ) !== false;
     }
 
     private function extractTitle(string $html): string

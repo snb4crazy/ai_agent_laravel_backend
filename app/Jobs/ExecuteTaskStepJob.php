@@ -49,6 +49,12 @@ class ExecuteTaskStepJob implements ShouldQueue
         $step = TaskStep::query()->findOrFail($this->taskStepId);
         $task = $step->task;
 
+        // Guard: skip steps that are already in a terminal state to prevent
+        // re-execution on retries or duplicate dispatches.
+        if (in_array($step->status, [TaskStepStatus::COMPLETED, TaskStepStatus::FAILED], true)) {
+            return;
+        }
+
         // Guard: if the parent task already failed, skip silently.
         if ($task->status === TaskStatus::FAILED) {
             return;
