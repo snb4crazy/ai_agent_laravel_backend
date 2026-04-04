@@ -29,10 +29,10 @@ class TaskPlannerServiceTest extends TestCase
     private function makeTask(string $type, array $inputJson = []): Task
     {
         return Task::query()->create([
-            'public_id'  => (string) Str::uuid(),
-            'user_id'    => User::factory()->create()->id,
-            'type'       => $type,
-            'status'     => TaskStatus::PENDING_PLANNING,
+            'public_id' => (string) Str::uuid(),
+            'user_id' => User::factory()->create()->id,
+            'type' => $type,
+            'status' => TaskStatus::PENDING_PLANNING,
             'input_json' => $inputJson,
         ]);
     }
@@ -43,7 +43,7 @@ class TaskPlannerServiceTest extends TestCase
 
     public function test_plan_returns_three_ordered_steps_for_multi_step_task(): void
     {
-        $task  = $this->makeTask('multi_step_task', ['prompt' => 'Hello world']);
+        $task = $this->makeTask('multi_step_task', ['prompt' => 'Hello world']);
         $steps = $this->planner->plan($task);
 
         $this->assertCount(3, $steps);
@@ -57,7 +57,7 @@ class TaskPlannerServiceTest extends TestCase
 
     public function test_plan_injects_prompt_into_step_input_for_multi_step_task(): void
     {
-        $task  = $this->makeTask('multi_step_task', ['prompt' => 'Great news today']);
+        $task = $this->makeTask('multi_step_task', ['prompt' => 'Great news today']);
         $steps = $this->planner->plan($task);
 
         $this->assertSame('Great news today', $steps[0]['input_json']['text']);
@@ -70,19 +70,19 @@ class TaskPlannerServiceTest extends TestCase
 
     public function test_plan_returns_two_steps_for_scrape_and_summarize(): void
     {
-        $task  = $this->makeTask('scrape_and_summarize', ['url' => 'https://example.com']);
+        $task = $this->makeTask('scrape_and_summarize', ['url' => 'https://example.com']);
         $steps = $this->planner->plan($task);
 
         $this->assertCount(2, $steps);
-        $this->assertSame('scrape_url',      $steps[0]['action_name']);
-        $this->assertSame('summarize_text',  $steps[1]['action_name']);
+        $this->assertSame('scrape_url', $steps[0]['action_name']);
+        $this->assertSame('summarize_text', $steps[1]['action_name']);
         $this->assertSame(1, $steps[0]['sequence_order']);
         $this->assertSame(2, $steps[1]['sequence_order']);
     }
 
     public function test_plan_injects_url_into_scrape_step_input(): void
     {
-        $task  = $this->makeTask('scrape_and_summarize', ['url' => 'https://test.io']);
+        $task = $this->makeTask('scrape_and_summarize', ['url' => 'https://test.io']);
         $steps = $this->planner->plan($task);
 
         $this->assertSame('https://test.io', $steps[0]['input_json']['url']);
@@ -94,12 +94,12 @@ class TaskPlannerServiceTest extends TestCase
 
     public function test_plan_returns_two_steps_for_classify_and_reply(): void
     {
-        $task  = $this->makeTask('classify_and_reply', ['prompt' => 'Help me']);
+        $task = $this->makeTask('classify_and_reply', ['prompt' => 'Help me']);
         $steps = $this->planner->plan($task);
 
         $this->assertCount(2, $steps);
         $this->assertSame('classify_intent', $steps[0]['action_name']);
-        $this->assertSame('generate_reply',  $steps[1]['action_name']);
+        $this->assertSame('generate_reply', $steps[1]['action_name']);
     }
 
     // -------------------------------------------------------------------------
@@ -108,7 +108,7 @@ class TaskPlannerServiceTest extends TestCase
 
     public function test_plan_returns_single_save_result_step_for_unknown_type(): void
     {
-        $task  = $this->makeTask('unknown_custom_task', ['foo' => 'bar']);
+        $task = $this->makeTask('unknown_custom_task', ['foo' => 'bar']);
         $steps = $this->planner->plan($task);
 
         $this->assertCount(1, $steps);
@@ -124,7 +124,7 @@ class TaskPlannerServiceTest extends TestCase
     {
         $task = $this->makeTask('multi_step_task', [
             'prompt' => 'Hello',
-            'steps'  => [
+            'steps' => [
                 ['action_name' => 'analyze_sentiment', 'sequence_order' => 1, 'input_json' => ['text' => 'Hi']],
                 ['action_name' => 'save_result',       'sequence_order' => 2, 'input_json' => ['key' => 'val']],
             ],
@@ -134,8 +134,8 @@ class TaskPlannerServiceTest extends TestCase
 
         $this->assertCount(2, $steps);
         $this->assertSame('analyze_sentiment', $steps[0]['action_name']);
-        $this->assertSame('save_result',       $steps[1]['action_name']);
-        $this->assertSame(['text' => 'Hi'],    $steps[0]['input_json']);
+        $this->assertSame('save_result', $steps[1]['action_name']);
+        $this->assertSame(['text' => 'Hi'], $steps[0]['input_json']);
     }
 
     public function test_plan_normalises_out_of_order_explicit_steps(): void
@@ -152,8 +152,8 @@ class TaskPlannerServiceTest extends TestCase
 
         $this->assertCount(3, $steps);
         $this->assertSame('analyze_sentiment', $steps[0]['action_name']);
-        $this->assertSame('generate_reply',    $steps[1]['action_name']);
-        $this->assertSame('save_result',       $steps[2]['action_name']);
+        $this->assertSame('generate_reply', $steps[1]['action_name']);
+        $this->assertSame('save_result', $steps[2]['action_name']);
     }
 
     public function test_plan_fills_missing_action_name_with_save_result(): void
@@ -200,4 +200,3 @@ class TaskPlannerServiceTest extends TestCase
         $this->assertSame('Test input', $steps[0]['input_json']['prompt']);
     }
 }
-
