@@ -25,6 +25,8 @@ class TaskStep extends Model
     protected function casts(): array
     {
         return [
+            'task_id' => 'integer',
+            'sequence_order' => 'integer',
             'input_json' => 'array',
             'output_json' => 'array',
             'started_at' => 'datetime',
