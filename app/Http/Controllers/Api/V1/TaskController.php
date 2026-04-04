@@ -74,6 +74,7 @@ class TaskController extends Controller
             'status' => $task->status,
             'task_public_id' => $task->public_id,
             'dispatch_id' => $task->public_id,
+            'links' => $this->taskLinks($task),
         ], 202);
     }
 
@@ -127,6 +128,7 @@ class TaskController extends Controller
             'status' => $task->status,
             'task_public_id' => $task->public_id,
             'dispatch_id' => $task->public_id,
+            'links' => $this->taskLinks($task),
             'pipeline' => [
                 'name' => $pipelineName,
                 'steps_count' => count($steps),
@@ -160,6 +162,7 @@ class TaskController extends Controller
             'status' => $task->status,
             'task_public_id' => $task->public_id,
             'dispatch_id' => $task->public_id,
+            'links' => $this->taskLinks($task),
             'action' => $action,
         ], 202);
     }
@@ -269,5 +272,18 @@ class TaskController extends Controller
         } catch (\Throwable $e) {
             throw TaskException::dispatchFailed($e);
         }
+    }
+
+    /**
+     * Provide canonical polling URLs so clients do not depend on queue internals.
+     *
+     * @return array{status: string, logs: string}
+     */
+    protected function taskLinks(Task $task): array
+    {
+        return [
+            'status' => route('api.v1.tasks.show', ['taskPublicId' => $task->public_id]),
+            'logs' => route('api.v1.tasks.logs', ['taskPublicId' => $task->public_id]),
+        ];
     }
 }
