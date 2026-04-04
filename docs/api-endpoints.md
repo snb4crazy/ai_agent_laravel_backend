@@ -137,7 +137,11 @@ Note: `TOKEN_EXPIRED` is returned when token expiration is configured and the to
 {
   "status": "queued",
   "task_public_id": "6f4d8b77-8f8c-4f06-8ba1-3e2f1b4db3d8",
-  "dispatch_id": "6f4d8b77-8f8c-4f06-8ba1-3e2f1b4db3d8"
+  "dispatch_id": "6f4d8b77-8f8c-4f06-8ba1-3e2f1b4db3d8",
+  "links": {
+    "status": "http://localhost:8000/api/v1/tasks/6f4d8b77-8f8c-4f06-8ba1-3e2f1b4db3d8",
+    "logs": "http://localhost:8000/api/v1/tasks/6f4d8b77-8f8c-4f06-8ba1-3e2f1b4db3d8/logs"
+  }
 }
 ```
 
@@ -145,6 +149,7 @@ Notes:
 
 - `task_public_id` is the stable identifier the frontend should store and poll.
 - `dispatch_id` currently mirrors `task_public_id` for backward compatibility.
+- `links.status` and `links.logs` are canonical polling URLs returned by backend.
 
 ## Endpoint: Get Task Status
 
