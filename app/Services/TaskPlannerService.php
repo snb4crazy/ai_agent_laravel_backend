@@ -74,7 +74,7 @@ class TaskPlannerService
                 [
                     'action_name' => 'summarize_text',
                     'sequence_order' => 2,
-                    'input_json' => ['text' => ''],   // populated from previous step at runtime
+                    'input_json' => [],   // text populated from previous step at runtime
                 ],
             ],
             'classify_and_reply' => [
@@ -118,7 +118,7 @@ class TaskPlannerService
 
     /**
      * Normalise a caller-supplied steps array, ensuring each entry has the
-     * required keys and that sequence_order values are contiguous.
+     * required keys and that sequence_order values are contiguous (1, 2, 3, …).
      *
      * @param  array<int, mixed>  $steps
      * @param  array<string, mixed>  $taskInput
@@ -140,6 +140,12 @@ class TaskPlannerService
 
         // Sort by sequence_order so callers don't have to.
         usort($normalised, static fn ($a, $b) => $a['sequence_order'] <=> $b['sequence_order']);
+
+        // Renumber to guarantee contiguous 1-based sequence_order values.
+        foreach ($normalised as $index => &$entry) {
+            $entry['sequence_order'] = $index + 1;
+        }
+        unset($entry);
 
         return $normalised;
     }
