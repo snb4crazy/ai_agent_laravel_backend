@@ -33,10 +33,10 @@ class MultiStepPipelineTest extends TestCase
     private function makeTask(string $type, array $inputJson = []): Task
     {
         return Task::query()->create([
-            'public_id'  => (string) Str::uuid(),
-            'user_id'    => User::factory()->create()->id,
-            'type'       => $type,
-            'status'     => TaskStatus::PENDING_PLANNING,
+            'public_id' => (string) Str::uuid(),
+            'user_id' => User::factory()->create()->id,
+            'type' => $type,
+            'status' => TaskStatus::PENDING_PLANNING,
             'input_json' => $inputJson,
         ]);
     }
@@ -78,8 +78,8 @@ class MultiStepPipelineTest extends TestCase
         $task->refresh();
         $output = $task->output_json;
 
-        $this->assertArrayHasKey('steps',          $output);
-        $this->assertArrayHasKey('step_outputs',   $output);
+        $this->assertArrayHasKey('steps', $output);
+        $this->assertArrayHasKey('step_outputs', $output);
         $this->assertArrayHasKey('primary_result', $output);
         $this->assertCount(3, $output['steps']);
     }
@@ -95,12 +95,12 @@ class MultiStepPipelineTest extends TestCase
             ->pluck('event_type')
             ->all();
 
-        $this->assertContains('task.planning_started',  $eventTypes);
-        $this->assertContains('task.steps_planned',     $eventTypes);
-        $this->assertContains('task_step.executing',    $eventTypes);
-        $this->assertContains('task_step.completed',    $eventTypes);
-        $this->assertContains('task.compile_started',   $eventTypes);
-        $this->assertContains('task.completed',         $eventTypes);
+        $this->assertContains('task.planning_started', $eventTypes);
+        $this->assertContains('task.steps_planned', $eventTypes);
+        $this->assertContains('task_step.executing', $eventTypes);
+        $this->assertContains('task_step.completed', $eventTypes);
+        $this->assertContains('task.compile_started', $eventTypes);
+        $this->assertContains('task.completed', $eventTypes);
     }
 
     public function test_pipeline_step_order_matches_sequence_order(): void
@@ -112,8 +112,8 @@ class MultiStepPipelineTest extends TestCase
         $steps = $task->steps()->orderBy('sequence_order')->get();
 
         $this->assertSame('analyze_sentiment', $steps->get(0)->action_name);
-        $this->assertSame('generate_reply',    $steps->get(1)->action_name);
-        $this->assertSame('save_result',       $steps->get(2)->action_name);
+        $this->assertSame('generate_reply', $steps->get(1)->action_name);
+        $this->assertSame('save_result', $steps->get(2)->action_name);
     }
 
     // -------------------------------------------------------------------------
@@ -132,7 +132,7 @@ class MultiStepPipelineTest extends TestCase
 
         $steps = $task->steps()->orderBy('sequence_order')->get();
         $this->assertCount(2, $steps);
-        $this->assertSame('scrape_url',     $steps->get(0)->action_name);
+        $this->assertSame('scrape_url', $steps->get(0)->action_name);
         $this->assertSame('summarize_text', $steps->get(1)->action_name);
 
         foreach ($steps as $step) {
@@ -157,7 +157,7 @@ class MultiStepPipelineTest extends TestCase
         $steps = $task->steps()->orderBy('sequence_order')->get();
         $this->assertCount(2, $steps);
         $this->assertSame('classify_intent', $steps->get(0)->action_name);
-        $this->assertSame('generate_reply',  $steps->get(1)->action_name);
+        $this->assertSame('generate_reply', $steps->get(1)->action_name);
     }
 
     // -------------------------------------------------------------------------
@@ -168,7 +168,7 @@ class MultiStepPipelineTest extends TestCase
     {
         $task = $this->makeTask('multi_step_task', [
             'prompt' => 'Hello',
-            'steps'  => [
+            'steps' => [
                 ['action_name' => 'analyze_sentiment', 'sequence_order' => 1, 'input_json' => ['text' => 'This is great']],
                 ['action_name' => 'save_result',       'sequence_order' => 2, 'input_json' => ['key' => 'value']],
             ],
@@ -183,7 +183,7 @@ class MultiStepPipelineTest extends TestCase
         $steps = $task->steps()->orderBy('sequence_order')->get();
         $this->assertCount(2, $steps);
         $this->assertSame('analyze_sentiment', $steps->get(0)->action_name);
-        $this->assertSame('save_result',       $steps->get(1)->action_name);
+        $this->assertSame('save_result', $steps->get(1)->action_name);
     }
 
     // -------------------------------------------------------------------------
@@ -235,11 +235,11 @@ class MultiStepPipelineTest extends TestCase
 
         // Create a single step manually to test the execute job in isolation.
         $step = TaskStep::query()->create([
-            'task_id'        => $task->id,
-            'action_name'    => 'analyze_sentiment',
+            'task_id' => $task->id,
+            'action_name' => 'analyze_sentiment',
             'sequence_order' => 1,
-            'status'         => TaskStepStatus::PENDING,
-            'input_json'     => ['text' => 'This is great'],
+            'status' => TaskStepStatus::PENDING,
+            'input_json' => ['text' => 'This is great'],
         ]);
 
         $task->fill(['status' => TaskStatus::EXECUTING])->save();
@@ -266,10 +266,10 @@ class MultiStepPipelineTest extends TestCase
         $task->fill(['status' => TaskStatus::FAILED])->save();
 
         $step = TaskStep::query()->create([
-            'task_id'        => $task->id,
-            'action_name'    => 'analyze_sentiment',
+            'task_id' => $task->id,
+            'action_name' => 'analyze_sentiment',
             'sequence_order' => 1,
-            'status'         => TaskStepStatus::PENDING,
+            'status' => TaskStepStatus::PENDING,
         ]);
 
         ExecuteTaskStepJob::dispatchSync($step->id);
@@ -289,23 +289,23 @@ class MultiStepPipelineTest extends TestCase
         $task->fill(['status' => TaskStatus::EXECUTING])->save();
 
         TaskStep::query()->create([
-            'task_id'        => $task->id,
-            'action_name'    => 'analyze_sentiment',
+            'task_id' => $task->id,
+            'action_name' => 'analyze_sentiment',
             'sequence_order' => 1,
-            'status'         => TaskStepStatus::COMPLETED,
-            'output_json'    => ['label' => 'positive', 'score' => 0.8, 'status' => 'ok'],
-            'started_at'     => now()->subSeconds(2),
-            'finished_at'    => now()->subSecond(),
+            'status' => TaskStepStatus::COMPLETED,
+            'output_json' => ['label' => 'positive', 'score' => 0.8, 'status' => 'ok'],
+            'started_at' => now()->subSeconds(2),
+            'finished_at' => now()->subSecond(),
         ]);
 
         TaskStep::query()->create([
-            'task_id'        => $task->id,
-            'action_name'    => 'save_result',
+            'task_id' => $task->id,
+            'action_name' => 'save_result',
             'sequence_order' => 2,
-            'status'         => TaskStepStatus::COMPLETED,
-            'output_json'    => ['saved' => true, 'status' => 'ok'],
-            'started_at'     => now()->subSecond(),
-            'finished_at'    => now(),
+            'status' => TaskStepStatus::COMPLETED,
+            'output_json' => ['saved' => true, 'status' => 'ok'],
+            'started_at' => now()->subSecond(),
+            'finished_at' => now(),
         ]);
 
         CompileTaskOutputJob::dispatchSync($task->id);
@@ -314,7 +314,7 @@ class MultiStepPipelineTest extends TestCase
 
         $this->assertSame(TaskStatus::COMPLETED, $task->status);
         $this->assertNotNull($task->output_json);
-        $this->assertArrayHasKey('steps',        $task->output_json);
+        $this->assertArrayHasKey('steps', $task->output_json);
         $this->assertArrayHasKey('step_outputs', $task->output_json);
         $this->assertCount(2, $task->output_json['steps']);
 
@@ -326,7 +326,7 @@ class MultiStepPipelineTest extends TestCase
     {
         $task = $this->makeTask('multi_step_task', ['prompt' => 'Hello']);
         $task->fill([
-            'status'      => TaskStatus::COMPLETED,
+            'status' => TaskStatus::COMPLETED,
             'output_json' => ['original' => true],
             'finished_at' => now(),
         ])->save();
@@ -349,10 +349,10 @@ class MultiStepPipelineTest extends TestCase
 
         // Simulate a partial first run that already created step 1.
         TaskStep::query()->create([
-            'task_id'        => $task->id,
-            'action_name'    => 'analyze_sentiment',
+            'task_id' => $task->id,
+            'action_name' => 'analyze_sentiment',
             'sequence_order' => 1,
-            'status'         => TaskStepStatus::PENDING,
+            'status' => TaskStepStatus::PENDING,
         ]);
 
         // Running the plan job again should not duplicate sequence_order = 1.
@@ -365,4 +365,3 @@ class MultiStepPipelineTest extends TestCase
         $this->assertSame(3, $task->steps()->count());
     }
 }
-
