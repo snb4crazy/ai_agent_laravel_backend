@@ -17,13 +17,99 @@ class AskAiActionTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_ask_ai_action_calls_service_and_logs_response(): void
+    public function test_ask_ai_action_uses_explicit_provider_from_input(): void
+    {
+        $this->bindFakeResolver();
+
+        $service = app(TaskActionService::class);
+        $result = $service->execute('ask_ai', [
+            'prompt' => 'Say hello',
+            'provider' => 'openai',
+            'model' => 'gpt-4o-mini',
+        ]);
+
+        $this->assertTrue($result['executed']);
+        $this->assertSame('ok', $result['result']['status']);
+        $this->assertSame('openai', $result['result']['provider']);
+        $this->assertSame('gpt-4o-mini', $result['result']['model']);
+        $this->assertSame('Synthetic AI answer', $result['result']['text']);
+    }
+
+    public function test_ask_ai_action_falls_back_to_config_default_for_unknown_provider(): void
+    {
+        config()->set('services.ai.provider', 'azure');
+        $this->bindFakeResolver();
+
+        $service = app(TaskActionService::class);
+        $result = $service->execute('ask_ai', [
+            'prompt' => 'Say hello',
+            'provider' => 'provider-that-does-not-exist',
+        ]);
+
+        $this->assertTrue($result['executed']);
+        $this->assertSame('ok', $result['result']['status']);
+        $this->assertSame('azure', $result['result']['provider']);
+    }
+
+    public function test_ask_ai_action_logs_provider_and_model_metadata(): void
+    {
+        $this->bindFakeResolver();
+
+        $task = Task::query()->create([
+            'public_id' => (string) Str::uuid(),
+            'user_id' => User::factory()->create()->id,
+            'type' => 'ask_ai_once',
+            'status' => TaskStatus::QUEUED,
+            'input_json' => ['prompt' => 'hello'],
+        ]);
+
+        $service = app(TaskActionService::class);
+        $result = $service->execute('ask_ai', [
+            'prompt' => 'Say hello',
+            'provider' => 'openai',
+            'model' => 'gpt-4o-mini',
+            'task_id' => $task->id,
+            'task_public_id' => $task->public_id,
+        ]);
+
+        $this->assertTrue($result['executed']);
+        $this->assertSame('ok', $result['result']['status']);
+        $this->assertSame('openai', $result['result']['provider']);
+        $this->assertSame('gpt-4o-mini', $result['result']['model']);
+        $this->assertSame('Synthetic AI answer', $result['result']['text']);
+
+        $runLog = RunLog::query()
+            ->where('task_id', $task->id)
+            ->where('event_type', 'task.ai_response_received')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($runLog);
+        $this->assertSame('openai', $runLog->context_json['provider']);
+        $this->assertSame('gpt-4o-mini', $runLog->context_json['model']);
+        $this->assertSame('Synthetic AI answer', $result['result']['text']);
+    }
+
+    public function test_ask_ai_action_fails_when_no_prompt_or_messages_are_given(): void
+    {
+        $service = app(TaskActionService::class);
+
+        $result = $service->execute('ask_ai', []);
+
+        $this->assertTrue($result['executed']);
+        $this->assertSame('failed', $result['result']['status']);
+    }
+
+    private function bindFakeResolver(): void
     {
         $this->app->instance(AIServiceResolver::class, new class extends AIServiceResolver
         {
             public function resolve(?string $provider = null): array
             {
-                $providerName = $provider ?: 'openai';
+                $supported = ['azure', 'openai', 'ollama', 'anthropic'];
+                $default = strtolower((string) config('services.ai.provider', 'azure'));
+                $candidate = strtolower(trim((string) ($provider ?? $default)));
+                $providerName = in_array($candidate, $supported, true) ? $candidate : $default;
 
                 $service = new class implements AIServiceInterface
                 {
@@ -53,45 +139,5 @@ class AskAiActionTest extends TestCase
                 ];
             }
         });
-
-        $task = Task::query()->create([
-            'public_id' => (string) Str::uuid(),
-            'user_id' => User::factory()->create()->id,
-            'type' => 'ask_ai_once',
-            'status' => TaskStatus::QUEUED,
-            'input_json' => ['prompt' => 'hello'],
-        ]);
-
-        $service = app(TaskActionService::class);
-        $result = $service->execute('ask_ai', [
-            'prompt' => 'Say hello',
-            'provider' => 'openai',
-            'task_id' => $task->id,
-            'task_public_id' => $task->public_id,
-        ]);
-
-        $this->assertTrue($result['executed']);
-        $this->assertSame('ok', $result['result']['status']);
-        $this->assertSame('Synthetic AI answer', $result['result']['text']);
-
-        $runLog = RunLog::query()
-            ->where('task_id', $task->id)
-            ->where('event_type', 'task.ai_response_received')
-            ->latest('id')
-            ->first();
-
-        $this->assertNotNull($runLog);
-        $this->assertSame('openai', $runLog->context_json['provider']);
-        $this->assertSame('Synthetic AI answer', $result['result']['text']);
-    }
-
-    public function test_ask_ai_action_fails_when_no_prompt_or_messages_are_given(): void
-    {
-        $service = app(TaskActionService::class);
-
-        $result = $service->execute('ask_ai', []);
-
-        $this->assertTrue($result['executed']);
-        $this->assertSame('failed', $result['result']['status']);
     }
 }
