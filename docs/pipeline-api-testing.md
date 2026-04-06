@@ -98,6 +98,7 @@ curl -X GET http://local.aiagent.com/api/v1/tasks/TASK_PUBLIC_ID/logs \
 These endpoints enqueue planner/execution jobs. Make sure worker is running:
 
 ```bash
-php artisan queue:work --queue=ai-agent:service,ai-agent:task
+php artisan queue:work redis --queue=service,task
 ```
 
+For deeper operational setup and debugging, see `docs/operations-runbook.md`.
