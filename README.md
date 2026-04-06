@@ -153,6 +153,7 @@ Key tables include:
 - Operations runbook: [`docs/operations-runbook.md`](docs/operations-runbook.md)
 - Supervisor setup: [`docs/supervisor-setup.md`](docs/supervisor-setup.md)
 - AI adapters: [`docs/ai-services.md`](docs/ai-services.md)
+- AI provider setup (.env + keys): [`docs/ai-provider-setup.md`](docs/ai-provider-setup.md)
 - AI request flow: [`docs/ai-request-flow.md`](docs/ai-request-flow.md)
 - Action stubs: [`docs/action-stubs.md`](docs/action-stubs.md)
 - Actions contract: [`docs/actions-contract.md`](docs/actions-contract.md)

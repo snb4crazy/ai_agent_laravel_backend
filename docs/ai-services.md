@@ -1,5 +1,9 @@
 # AI Services (OpenAI + Azure OpenAI)
 
+For step-by-step key acquisition and `.env` setup, see:
+
+- `docs/ai-provider-setup.md`
+
 This project now uses one app-level contract:
 
 - `App\Services\AI\Contracts\AIServiceInterface`
@@ -99,4 +103,3 @@ POST /openai/deployments/{model}/batch?api-version=2024-05-01-preview
 is now wrapped in:
 
 - `AzureOpenAIService::batch($model, $inputFileId, $outputDirectoryId, $completionWindow = '24h', $options = [])`
-
