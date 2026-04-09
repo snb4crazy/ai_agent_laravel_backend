@@ -147,8 +147,10 @@ Key tables include:
 
 ## Project docs
 
+- **Product focus**: [`docs/use-cases.md`](docs/use-cases.md) - Real-world use cases to guide implementation
+- **Work backlog**: [`docs/backlog.md`](docs/backlog.md) - Sprint-ready tickets for Jira/GitHub
+- **Deliverables**: [`docs/deliverables.md`](docs/deliverables.md) - MVP scope and "done" criteria
 - API docs: [`docs/api-endpoints.md`](docs/api-endpoints.md)
-- Deliverables (MVP focus): [`docs/deliverables.md`](docs/deliverables.md)
 - CI/CD docs: [`docs/github-actions.md`](docs/github-actions.md)
 - Operations runbook: [`docs/operations-runbook.md`](docs/operations-runbook.md)
 - Supervisor setup: [`docs/supervisor-setup.md`](docs/supervisor-setup.md)
