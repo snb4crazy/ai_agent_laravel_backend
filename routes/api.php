@@ -16,6 +16,7 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/tasks', [TaskController::class, 'store']);
         Route::post('/tasks/run-pipeline', [TaskController::class, 'runPipeline']);
         Route::post('/tasks/run-action', [TaskController::class, 'runAction']);
+        Route::post('/tasks/run-policy-pipeline', [TaskController::class, 'runPolicyGuidedPipeline']);
         Route::get('/tasks/{taskPublicId}', [TaskController::class, 'show'])->name('api.v1.tasks.show');
         Route::get('/tasks/{taskPublicId}/logs', [TaskController::class, 'logs'])->name('api.v1.tasks.logs');
     });
