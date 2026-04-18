@@ -6,7 +6,9 @@ use App\Enums\QueueEnum;
 use App\Enums\TaskStatus;
 use App\Exceptions\TaskException;
 use App\Http\Controllers\Controller;
+use App\Actions\LoadPoliciesAction;
 use App\Http\Requests\Api\V1\RunActionsPipelineRequest;
+use App\Http\Requests\Api\V1\RunPolicyGuidedPipelineRequest;
 use App\Http\Requests\Api\V1\RunSingleActionRequest;
 use App\Http\Requests\Api\V1\StoreTaskDispatchRequest;
 use App\Jobs\LogTaskRequestJob;
@@ -164,6 +166,92 @@ class TaskController extends Controller
             'dispatch_id' => $task->public_id,
             'links' => $this->taskLinks($task),
             'action' => $action,
+        ], 202);
+    }
+
+    /**
+     * Policy-guided pipeline: load rules first, then run exactly 2 actions
+     * with the policy context available in every step's input.
+     *
+     * This endpoint is intentionally separate from runPipeline() so you can
+     * compare outputs side-by-side and add policy-enforcement logic later
+     * without touching the generic pipeline code.
+     *
+     * Flow (all deterministic, no AI decisions):
+     *  1. LoadPoliciesAction runs synchronously in the controller and returns
+     *     a policy_context (flag + rules array).
+     *  2. Two action steps are created; each step's input_json carries the
+     *     full policy_context alongside the caller's base input.
+     *  3. The task enters the standard PlanTaskStepsJob → ExecuteTaskStepJob
+     *     chain; ExecuteTaskStepJob also injects previous_output so step 2
+     *     can see step 1's result.
+     */
+    public function runPolicyGuidedPipeline(
+        RunPolicyGuidedPipelineRequest $request,
+        LoadPoliciesAction $policyLoader,
+    ): JsonResponse {
+        $validated = $request->validated();
+
+        // Default action pair if the caller does not specify one.
+        $actions = array_values((array) ($validated['actions'] ?? ['analyze_sentiment', 'generate_reply']));
+        $baseInput = (array) ($validated['input'] ?? []);
+        $inputByAction = (array) ($validated['input_by_action'] ?? []);
+
+        // ── Step 1: load policies synchronously ───────────────────────────────
+        // Running this in-process (not in a queue) so the context is available
+        // immediately when we build the task.  The stub is fast; swap for async
+        // loading if the real policy source is slow.
+        $policyContext = $policyLoader->handle($baseInput);
+
+        // ── Step 2: build step definitions with policy_context injected ───────
+        $steps = [];
+        foreach ($actions as $index => $actionName) {
+            $perActionInput = isset($inputByAction[$actionName]) && is_array($inputByAction[$actionName])
+                ? $inputByAction[$actionName]
+                : [];
+
+            $steps[] = [
+                'action_name' => (string) $actionName,
+                'sequence_order' => $index + 1,
+                // policy_context is merged into EVERY step so actions can
+                // read active rules without needing a separate lookup.
+                'input_json' => array_merge($baseInput, $perActionInput, [
+                    'policy_context' => $policyContext,
+                ]),
+            ];
+        }
+
+        // ── Step 3: persist & enqueue ─────────────────────────────────────────
+        $taskMeta = array_merge((array) ($validated['meta'] ?? []), [
+            'pipeline_name' => 'policy_guided',
+            'policy_flag' => $policyContext['flag'] ?? null,
+            'policy_version' => data_get($policyContext, 'meta.version'),
+            'policy_loaded_at' => $policyContext['loaded_at'] ?? null,
+        ]);
+
+        $task = $this->createPipelineTask(
+            $request,
+            'policy_guided_pipeline',
+            ['steps' => $steps, 'policy_context' => $policyContext],
+            $taskMeta,
+        );
+
+        return response()->json([
+            'status' => $task->status,
+            'task_public_id' => $task->public_id,
+            'dispatch_id' => $task->public_id,
+            'links' => $this->taskLinks($task),
+            'pipeline' => [
+                'name' => 'policy_guided',
+                'actions' => $actions,
+                'policy_flag' => $policyContext['flag'] ?? null,
+                'active_rules' => array_values(
+                    array_filter(
+                        $policyContext['rules'] ?? [],
+                        fn (array $r): bool => (bool) ($r['enabled'] ?? false),
+                    )
+                ),
+            ],
         ], 202);
     }
 
