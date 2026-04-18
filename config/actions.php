@@ -4,6 +4,7 @@ use App\Actions\AnalyzeSentimentAction;
 use App\Actions\AskAiAction;
 use App\Actions\ClassifyIntentAction;
 use App\Actions\GenerateReplyAction;
+use App\Actions\LoadPoliciesAction;
 use App\Actions\SaveResultAction;
 use App\Actions\ScrapeUrlAction;
 use App\Actions\SummarizeTextAction;
@@ -30,5 +31,6 @@ return [
         'summarize_text' => SummarizeTextAction::class,
         'classify_intent' => ClassifyIntentAction::class,
         'ask_ai' => AskAiAction::class,
+        'load_policies' => LoadPoliciesAction::class,
     ],
 ];
