@@ -112,3 +112,107 @@ Audio (speech-to-text)	Whisper	Transcription	Batch or near real-time
 Audio (text-to-speech)	TTS models	Voice output	Limited rollout
 Vision (image input)	GPT-4o (vision)	Analyze images	Same chat endpoint
 
+
+### 🚀 2. Simple use cases + Laravel requests
+
+I’ll give you small, testable experiments (perfect for your backend testing mindset).
+
+💬 2.1 Chat / Text generation
+Use case:
+
+Generate a task summary (fits your Commutask app nicely)
+```php
+$response = Http::withHeaders([
+'api-key' => env('AZURE_OPENAI_KEY'),
+])->post(env('AZURE_OPENAI_ENDPOINT') . '/openai/deployments/chat-main/chat/completions?api-version=2024-02-15-preview', [
+'messages' => [
+['role' => 'system', 'content' => 'You summarize tasks'],
+['role' => 'user', 'content' => 'Finish Laravel API, fix bugs, deploy to Azure'],
+],
+]);
+
+$text = $response['choices'][0]['message']['content'];
+```
+
+🧠 2.2 Embeddings (semantic search)
+Use case:
+
+Search similar tasks / notes
+```php
+$response = Http::withHeaders([
+'api-key' => env('AZURE_OPENAI_KEY'),
+])->post(env('AZURE_OPENAI_ENDPOINT') . '/openai/deployments/embeddings/embeddings?api-version=2024-02-15-preview', [
+'input' => 'Fix login bug',
+]);
+
+$vector = $response['data'][0]['embedding'];
+```
+
+👉 Store vectors → compare with cosine similarity
+
+🖼️ 2.3 Image generation (DALL·E)
+Use case:
+
+Generate app icons or YouTube thumbnails (you mentioned this before 👀)
+```php
+$response = Http::withHeaders([
+'api-key' => env('AZURE_OPENAI_KEY'),
+])->post(env('AZURE_OPENAI_ENDPOINT') . '/openai/deployments/dalle/images/generations?api-version=2024-02-15-preview', [
+'prompt' => 'Minimalist grocery app icon, green basket, flat design',
+'size' => '1024x1024',
+]);
+
+$imageUrl = $response['data'][0]['url'];
+```
+
+👁️ 2.4 Vision (analyze image)
+Use case:
+
+Analyze screenshots or user-uploaded photos
+```php
+$response = Http::withHeaders([
+'api-key' => env('AZURE_OPENAI_KEY'),
+])->post(env('AZURE_OPENAI_ENDPOINT') . '/openai/deployments/chat-main/chat/completions?api-version=2024-02-15-preview', [
+'messages' => [
+[
+'role' => 'user',
+'content' => [
+['type' => 'text', 'text' => 'What is in this image?'],
+[
+'type' => 'image_url',
+'image_url' => [
+'url' => 'https://example.com/image.jpg'
+]
+]
+]
+]
+],
+]);
+```
+🎤 2.5 Speech-to-text (Whisper)
+Use case:
+
+Transcribe voice notes (could be 🔥 for your productivity app)
+```php
+$response = Http::withHeaders([
+'api-key' => env('AZURE_OPENAI_KEY'),
+])->attach(
+'file', fopen(storage_path('app/audio.mp3'), 'r'), 'audio.mp3'
+)->post(env('AZURE_OPENAI_ENDPOINT') . '/openai/deployments/whisper/audio/transcriptions?api-version=2024-02-15-preview');
+
+$text = $response['text'];
+```
+🔊 2.6 Text-to-Speech
+Use case:
+
+Generate spoken summaries
+```php
+$response = Http::withHeaders([
+'api-key' => env('AZURE_OPENAI_KEY'),
+])->post(env('AZURE_OPENAI_ENDPOINT') . '/openai/deployments/tts/audio/speech?api-version=2024-02-15-preview', [
+'input' => 'You have 3 tasks due today',
+'voice' => 'alloy'
+]);
+
+file_put_contents('speech.mp3', $response->body());
+```
