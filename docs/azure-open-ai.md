@@ -75,3 +75,40 @@ Optional improvements (worth doing)
 ```php
 Http::timeout(10)->retry(3, 100);
 ```
+
+### 🧠 1. What is AZURE_OPENAI_DEPLOYMENT?
+
+In Azure, you don’t call models directly (like gpt-4o).
+
+Instead, you:
+
+Go to your Azure OpenAI resource
+Deploy a model
+Give it a custom name (this is the deployment name)
+
+👉 That name is what you must use in Laravel.
+🔎 Where to find / create it
+
+In the Azure Portal:
+
+Open your Azure OpenAI resource
+Go to “Model deployments” (or “Deployments”)
+You’ll either:
+See an existing deployment (use its name), or
+Need to create one
+https://YOUR-ENDPOINT/openai/deployments/YOUR-DEPLOYMENT/chat/completions?api-version=YOUR-VERSION
+
+
+### 🧠 1. What models you can typically use (Azure OpenAI)
+
+Here’s a practical table of what you’ll likely see today:
+
+Capability	Example model (Azure)	What it’s for	Notes
+Chat / text	GPT-4o / GPT-4 Turbo	Chatbots, APIs, content	Main workhorse
+Lightweight chat	GPT-4o-mini	Cheap, fast tasks	Great for bulk
+Embeddings	text-embedding-3-large / small	Search, similarity	Very cheap
+Image generation	DALL·E 3	Generate images	Available in many regions
+Audio (speech-to-text)	Whisper	Transcription	Batch or near real-time
+Audio (text-to-speech)	TTS models	Voice output	Limited rollout
+Vision (image input)	GPT-4o (vision)	Analyze images	Same chat endpoint
+
