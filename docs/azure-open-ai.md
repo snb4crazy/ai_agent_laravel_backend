@@ -216,3 +216,51 @@ $response = Http::withHeaders([
 
 file_put_contents('speech.mp3', $response->body());
 ```
+### 🧪 3. What to try (quick experimentation roadmap)
+
+Since you like practical exploration, try this order:
+
+✅ Chat → simplest
+✅ Image generation → instant visual reward
+✅ Vision → upload your own photos
+✅ Embeddings → more “backend engineering”
+✅ Speech → fun + useful
+
+### ⚠️ 4. Gotchas (important)
+You must deploy each model separately
+
+Deployment names are arbitrary:
+chat-main
+embeddings
+dalle
+whisper
+
+Some features may not appear unless:
+your region supports them
+your subscription is approved
+
+### 💡 5. Does Azure OpenAI have everything?
+Feature	Status
+Chat	✅ Yes
+Images	✅ Yes
+Audio	✅ Yes
+Vision	✅ Yes
+Video generation	❌ No
+Realtime streaming	⚠️ Limited / evolving
+🚀 If you want next step
+
+Given your background (Laravel + Azure + YouTube + automation), I can suggest 10 real mini-projects like:
+
+auto-generate YouTube descriptions
+analyze comments sentiment (you mentioned this before)
+generate thumbnails + titles combo
+convert hiking photos → narrated slideshow (you already started this direction)
+
+```php
+```
+
+```php
+```
+
+```php
+```
